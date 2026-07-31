@@ -5,8 +5,8 @@ using UnityEngine.InputSystem;
 namespace EduQuest.AR
 {
     /// <summary>
-    /// Tap/click a detected table plane to place a prefab once (pot, beaker, etc.).
-    /// Desktop/camera preview: Physics raycast onto the table collider.
+    /// Places a prefab once on a table.
+    /// Desktop: Physics raycast. Phone AR: ARFoundationPlaceBridge → PlaceOnPose.
     /// </summary>
     public class TablePotPlacer : MonoBehaviour
     {
@@ -14,14 +14,20 @@ namespace EduQuest.AR
         [SerializeField] GameObject potPrefab;
         [SerializeField] LayerMask tableMask = ~0;
         [SerializeField] bool placementEnabled;
+        [SerializeField] bool usePhysicsPlacement = true;
 
         GameObject m_Placed;
         bool m_HasPot;
 
         public bool HasPot => m_HasPot;
         public GameObject PlacedObject => m_Placed;
-        /// <summary>Legacy accessor for germination lab.</summary>
         public GerminationPot Pot => m_Placed != null ? m_Placed.GetComponent<GerminationPot>() : null;
+        public bool UsePhysicsPlacement
+        {
+            get => usePhysicsPlacement;
+            set => usePhysicsPlacement = value;
+        }
+
         public bool PlacementEnabled
         {
             get => placementEnabled;
@@ -30,8 +36,13 @@ namespace EduQuest.AR
 
         public void Configure(Camera cam, GameObject prefab)
         {
-            rayCamera = cam;
-            potPrefab = prefab;
+            if (cam != null) rayCamera = cam;
+            if (prefab != null) potPrefab = prefab;
+        }
+
+        public void SetCamera(Camera cam)
+        {
+            if (cam != null) rayCamera = cam;
         }
 
         public GameObject PlaceOnPose(Pose pose)
@@ -47,36 +58,37 @@ namespace EduQuest.AR
 
         void Update()
         {
+            if (!usePhysicsPlacement) return;
             if (!placementEnabled || m_HasPot || rayCamera == null) return;
 
-            var mouse = Mouse.current;
-            var touch = Touchscreen.current;
-
-            Vector2 screenPos;
-            bool pressed = false;
-
-            if (touch != null && touch.primaryTouch.press.wasPressedThisFrame)
-            {
-                screenPos = touch.primaryTouch.position.ReadValue();
-                pressed = true;
-            }
-            else if (mouse != null && mouse.leftButton.wasPressedThisFrame)
-            {
-                screenPos = mouse.position.ReadValue();
-                pressed = true;
-            }
-            else return;
-
-            if (!pressed) return;
+            if (!TryGetPress(out var screenPos)) return;
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
                 return;
 
             var ray = rayCamera.ScreenPointToRay(screenPos);
             if (Physics.Raycast(ray, out var hit, 40f, tableMask))
             {
-                var pose = new Pose(hit.point, Quaternion.FromToRotation(Vector3.up, hit.normal));
+                var pose = new Pose(hit.point, Quaternion.Euler(0f, 0f, 0f));
                 PlaceOnPose(pose);
             }
+        }
+
+        static bool TryGetPress(out Vector2 screenPos)
+        {
+            screenPos = default;
+            var touch = Touchscreen.current;
+            var mouse = Mouse.current;
+            if (touch != null && touch.primaryTouch.press.wasPressedThisFrame)
+            {
+                screenPos = touch.primaryTouch.position.ReadValue();
+                return true;
+            }
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+            {
+                screenPos = mouse.position.ReadValue();
+                return true;
+            }
+            return false;
         }
 
         public void ResetPlacement()

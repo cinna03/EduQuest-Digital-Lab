@@ -4,11 +4,13 @@ using EduQuest.AR;
 using EduQuest.Experiments;
 using EduQuest.Lab;
 using EduQuest.UI;
+using Unity.XR.CoreUtils;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using UnityEngine.XR.ARFoundation;
 
 namespace EduQuest.EditorTools
 {
@@ -16,6 +18,7 @@ namespace EduQuest.EditorTools
     {
         const string ScenePath = "Assets/Scenes/EduQuestLab.unity";
         const string PrefabPath = "Assets/Prefabs/CrystalBeaker.prefab";
+        const string PlanePrefabPath = "Assets/Prefabs/ARPlane.prefab";
 
         [MenuItem("EduQuest/Build Photographic Crystal Lab", priority = 0)]
         [MenuItem("EduQuest/Build Chemistry Light & Mix Lab", priority = 1)]
@@ -86,6 +89,8 @@ namespace EduQuest.EditorTools
             LabPropFactory.CreateBenchGradCylinder(room.transform, new Vector3(1.15f, 0f, 0.55f));
 
             var beakerPrefab = EnsureBeakerPrefab();
+            var planePrefab = EnsurePlanePrefab();
+
             var labRoot = new GameObject("PhotographicCrystalLab");
             var lab = labRoot.AddComponent<PhotographicCrystalLab>();
             var sensor = labRoot.AddComponent<WorldLightSensor>();
@@ -93,6 +98,36 @@ namespace EduQuest.EditorTools
             placer.Configure(cam, beakerPrefab);
             var taps = labRoot.AddComponent<LabTapSelector>();
             taps.Configure(cam);
+            var arBench = labRoot.AddComponent<ArChemBench>();
+
+            // Phone AR stack (AR Foundation 6.5 — Unity 6000.5)
+            var arSession = new GameObject("AR Session");
+            arSession.AddComponent<ARSession>();
+            arSession.AddComponent<ARInputManager>();
+
+            var xrOrigin = new GameObject("XR Origin");
+            var origin = xrOrigin.AddComponent<XROrigin>();
+            xrOrigin.AddComponent<ARRaycastManager>();
+            var planeMgr = xrOrigin.AddComponent<ARPlaneManager>();
+            planeMgr.planePrefab = planePrefab;
+            var bridge = xrOrigin.AddComponent<ARFoundationPlaceBridge>();
+            bridge.Configure(placer, planeMgr);
+
+            var cameraOffset = new GameObject("Camera Offset");
+            cameraOffset.transform.SetParent(xrOrigin.transform, false);
+            var arCamGo = new GameObject("AR Camera");
+            arCamGo.transform.SetParent(cameraOffset.transform, false);
+            arCamGo.tag = "Untagged";
+            var arCam = arCamGo.AddComponent<Camera>();
+            arCam.enabled = false;
+            arCam.nearClipPlane = 0.1f;
+            arCamGo.AddComponent<ARCameraManager>();
+            arCamGo.AddComponent<ARCameraBackground>();
+            origin.CameraFloorOffsetObject = cameraOffset;
+            origin.Camera = arCam;
+
+            var bootstrap = labRoot.AddComponent<ARPlatformBootstrap>();
+            bootstrap.Configure(room, arSession, xrOrigin, cam, arCam, placer);
 
             var canvas = CreateCanvas();
 
@@ -103,7 +138,7 @@ namespace EduQuest.EditorTools
             Stretch(preview.GetComponent<RectTransform>(), 14f);
             var raw = preview.AddComponent<RawImage>();
             raw.color = new Color(0.15f, 0.15f, 0.18f);
-            var previewLabel = GlassLabel(previewPanel.transform, "PreviewLabel", "LIVE LIGHT · keep dark while mixing", 12);
+            var previewLabel = GlassLabel(previewPanel.transform, "PreviewLabel", "LIGHT SENSOR · phone uses AR camera view", 12);
             Pin(previewLabel.rectTransform, 0.06f, 0.86f, 0.94f, 0.97f);
             sensor.SetPreview(raw);
 
@@ -120,7 +155,7 @@ namespace EduQuest.EditorTools
             var header = GlassLabel(top.transform, "Header", "EduQuest · Photographic Crystal", 17, true);
             Pin(header.rectTransform, 0.03f, 0.15f, 0.48f, 0.85f);
             header.alignment = TextAnchor.MiddleLeft;
-            var prompt = GlassLabel(top.transform, "Prompt", "Tap bottles → measure → pour · dark first, light last", 12);
+            var prompt = GlassLabel(top.transform, "Prompt", "Phone: scan table → place → mix · dark first, light last", 12);
             Pin(prompt.rectTransform, 0.48f, 0.15f, 0.82f, 0.85f);
             prompt.alignment = TextAnchor.MiddleLeft;
             var status = GlassLabel(top.transform, "Status", "", 1);
@@ -188,7 +223,8 @@ namespace EduQuest.EditorTools
                 placer, sensor, hint,
                 stepLabel, guideTitle, guideBody, reaction, meterLabel, safety,
                 journal, scoreText, measureLabel, selectedLabel, lightState,
-                lightFill, chemBtns, m5, m10, pour, waste, hintBtn, taps);
+                lightFill, chemBtns, m5, m10, pour, waste, hintBtn, taps,
+                arBench, bootstrap, bridge);
 
             var reflectionGo = new GameObject("ReflectionUI");
             var reflection = reflectionGo.AddComponent<ReflectionUI>();
@@ -227,9 +263,32 @@ namespace EduQuest.EditorTools
             AssetDatabase.Refresh();
 
             EditorUtility.DisplayDialog(
-                "Photographic Crystal · Glass Lab",
-                "1) Play → allow camera\n2) Tap table → place Griffin beaker (600 ml look)\n3) Tap chem glassware (Erlenmeyer / cylinder / flask…)\n4) 5/10 ml → Pour\n5) Dark mix → fixer → bright light\n\nGlassware now has a professional chem feel.",
+                "Photographic Crystal · Phone AR",
+                "DESKTOP:\nPlay → tap table → mix as before.\n\nPHONE AR:\n1) Wait for AR Foundation 6.5 packages\n2) XR Plug-in Management → ARCore / ARKit\n3) Build Settings → Android/iOS → Build And Run\n4) Scan table → tap plane → beaker + reagents\n5) Dark mix → fixer → bright light\n\nSIMULATION ONLY.",
                 "OK");
+        }
+
+        static GameObject EnsurePlanePrefab()
+        {
+            Directory.CreateDirectory("Assets/Prefabs");
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(PlanePrefabPath) != null)
+                AssetDatabase.DeleteAsset(PlanePrefabPath);
+
+            var go = new GameObject("ARPlane");
+            go.AddComponent<ARPlane>();
+            go.AddComponent<ARPlaneMeshVisualizer>();
+            var mf = go.AddComponent<MeshFilter>();
+            var mr = go.AddComponent<MeshRenderer>();
+            var mat = LabGlassMaterials.MakeGlass(new Color(0.4f, 0.85f, 1f, 0.25f));
+            mr.sharedMaterial = mat;
+            go.AddComponent<MeshCollider>();
+            var line = go.AddComponent<LineRenderer>();
+            line.widthMultiplier = 0.01f;
+            line.sharedMaterial = LabGlassMaterials.MakeSolid(new Color(0.6f, 0.95f, 1f), 0.2f);
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(go, PlanePrefabPath);
+            Object.DestroyImmediate(go);
+            return prefab;
         }
 
         static GameObject EnsureBeakerPrefab()

@@ -55,8 +55,12 @@ namespace EduQuest.Experiments
         [SerializeField] Button wasteBtn;
         [SerializeField] Button hintButton;
         [SerializeField] LabTapSelector tapSelector;
+        [SerializeField] ArChemBench arBench;
+        [SerializeField] ARPlatformBootstrap platform;
+        [SerializeField] ARFoundationPlaceBridge placeBridge;
 
         CrystalBeaker m_Beaker;
+        bool m_SpawnedArBench;
         ChemId m_Selected = ChemId.None;
         float m_MeasureMl = 10f;
 
@@ -110,11 +114,17 @@ namespace EduQuest.Experiments
             Button pour,
             Button waste,
             Button hintBtn,
-            LabTapSelector taps = null)
+            LabTapSelector taps = null,
+            ArChemBench bench = null,
+            ARPlatformBootstrap bootstrap = null,
+            ARFoundationPlaceBridge bridge = null)
         {
             placer = potPlacer;
             lightSensor = sensor;
             placementHint = hint;
+            arBench = bench;
+            platform = bootstrap;
+            placeBridge = bridge;
             stepLabel = step;
             guideTitle = title;
             guideBody = body;
@@ -230,13 +240,22 @@ namespace EduQuest.Experiments
                 placer.PlacementEnabled = true;
             }
             tapSelector?.ClearSelection();
+            arBench?.Clear();
+            placeBridge?.ResetPlanes();
+            m_SpawnedArBench = false;
             m_Beaker = null;
-            if (placementHint) placementHint.SetActive(true);
+            if (placer != null)
+                placer.PlacementEnabled = true;
+            if (placementHint) placementHint.SetActive(!IsPhoneAr());
 
-            ShowReaction("Tap the table to place your beaker.");
+            ShowReaction(IsPhoneAr()
+                ? "Scan a table — when planes appear, tap the surface to place your beaker."
+                : "Tap the table to place your beaker.");
             RefreshGuide();
             RefreshHud();
         }
+
+        bool IsPhoneAr() => platform != null && platform.IsPhoneAr;
 
         void OnBottleTapped(ChemicalBottle bottle)
         {
@@ -273,7 +292,15 @@ namespace EduQuest.Experiments
                 if (m_Beaker != null)
                 {
                     if (placementHint) placementHint.SetActive(false);
-                    ShowReaction("Beaker placed. Select a bottle, set ml, then Pour — keep light OFF.");
+                    if (IsPhoneAr() && arBench != null && !m_SpawnedArBench)
+                    {
+                        arBench.SpawnAround(m_Beaker.transform);
+                        m_SpawnedArBench = true;
+                        Log("AR bench spawned around beaker — tap glassware to select.");
+                    }
+                    ShowReaction(IsPhoneAr()
+                        ? "Beaker anchored on table. Tap reagents around it — keep room dark while mixing."
+                        : "Beaker placed. Tap a bottle, set ml, then Pour — keep light OFF.");
                     RefreshGuide();
                 }
             }
@@ -705,8 +732,9 @@ namespace EduQuest.Experiments
                 return;
             }
 
-            guideBody.text =
-                "Tap glass bottles (hover labels) to select.\nMeasure 5/10 ml → Pour into beaker.\n\nScience (sim):\nAgNO₃ + NaCl → AgCl (light-sensitive).\nFix before light, or it darkens.\n\n1) LIGHT OFF\n2) 10 ml A\n3) 10 ml B\n4) Wait ~5s\n5) 5 ml C\n6) LIGHT ON → glow";
+            guideBody.text = IsPhoneAr()
+                ? "PHONE AR:\nScan table → tap plane to place beaker.\nReagents spawn around it — tap to select.\n\n1) LIGHT OFF\n2) 10 ml A\n3) 10 ml B\n4) Wait ~5s\n5) 5 ml C\n6) LIGHT ON → glow\n\nSIMULATION ONLY."
+                : "Tap glass bottles (hover labels) to select.\nMeasure 5/10 ml → Pour into beaker.\n\n1) LIGHT OFF\n2) 10 ml A\n3) 10 ml B\n4) Wait ~5s\n5) 5 ml C\n6) LIGHT ON → glow";
         }
 
         static string ChemName(ChemId id) => id switch

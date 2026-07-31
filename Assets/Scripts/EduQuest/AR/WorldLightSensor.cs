@@ -1,13 +1,13 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR.ARFoundation;
 
 namespace EduQuest.AR
 {
     /// <summary>
-    /// Reads real-world brightness from the device camera (AR light proxy).
-    /// On phone builds this is the same idea as AR Foundation light estimation:
-    /// the physical room controls the lab — not a UI slider.
+    /// Desktop: webcam luminance.
+    /// Phone AR: AR Foundation light estimation (no second WebCamTexture fight).
     /// </summary>
     public class WorldLightSensor : MonoBehaviour
     {
@@ -19,27 +19,76 @@ namespace EduQuest.AR
         Color32[] m_Pixels;
         float m_Brightness;
         bool m_Ready;
+        bool m_UseArLight;
+        ARCameraManager m_ArCamera;
 
-        /// <summary>0 = dark, 1 = very bright (smoothed).</summary>
         public float Brightness => m_Brightness;
         public bool IsReady => m_Ready;
         public bool IsBright => m_Brightness >= 0.55f;
         public bool IsDark => m_Brightness <= 0.22f;
 
         public void SetPreview(RawImage preview) => cameraPreview = preview;
+
         public string Label
         {
             get
             {
                 if (!m_Ready) return "Camera starting…";
-                if (IsBright) return "BRIGHT";
-                if (IsDark) return "DARK";
-                return "DIM";
+                string mode = m_UseArLight ? "AR" : "CAM";
+                if (IsBright) return $"{mode} BRIGHT";
+                if (IsDark) return $"{mode} DARK";
+                return $"{mode} DIM";
             }
         }
 
         public IEnumerator StartSensor()
         {
+#if UNITY_ANDROID || UNITY_IOS
+            if (TryStartArLight())
+            {
+                if (cameraPreview != null)
+                {
+                    cameraPreview.texture = null;
+                    cameraPreview.color = new Color(0.08f, 0.12f, 0.16f, 0.9f);
+                }
+                yield break;
+            }
+#endif
+            yield return StartWebcam();
+        }
+
+        bool TryStartArLight()
+        {
+            m_ArCamera = FindAnyObjectByType<ARCameraManager>();
+            if (m_ArCamera == null || !m_ArCamera.gameObject.activeInHierarchy)
+                return false;
+
+            m_UseArLight = true;
+            m_ArCamera.frameReceived += OnArFrame;
+            m_Ready = true; // becomes meaningful when first estimation arrives
+            m_Brightness = 0.35f;
+            Debug.Log("WorldLightSensor: using AR light estimation.");
+            return true;
+        }
+
+        void OnArFrame(ARCameraFrameEventArgs args)
+        {
+            float target = m_Brightness;
+            var le = args.lightEstimation;
+            if (le.averageBrightness.HasValue)
+                target = Mathf.Clamp01(le.averageBrightness.Value);
+            else if (le.averageIntensityInLumens.HasValue)
+                target = Mathf.Clamp01(le.averageIntensityInLumens.Value / 1200f);
+            else
+                return;
+
+            m_Brightness = Mathf.Lerp(m_Brightness, target, 1f - Mathf.Exp(-smooth * Time.deltaTime));
+            m_Ready = true;
+        }
+
+        IEnumerator StartWebcam()
+        {
+            m_UseArLight = false;
             yield return Application.RequestUserAuthorization(UserAuthorization.WebCam);
             if (!Application.HasUserAuthorization(UserAuthorization.WebCam))
             {
@@ -54,7 +103,6 @@ namespace EduQuest.AR
                 yield break;
             }
 
-            // Prefer back camera on phones (world-facing = AR view)
             string deviceName = devices[0].name;
             for (int i = 0; i < devices.Length; i++)
             {
@@ -74,7 +122,6 @@ namespace EduQuest.AR
                 cameraPreview.color = Color.white;
             }
 
-            // Wait until frames arrive
             float timeout = 5f;
             while (m_Webcam != null && !m_Webcam.didUpdateThisFrame && timeout > 0f)
             {
@@ -87,7 +134,7 @@ namespace EduQuest.AR
 
         void Update()
         {
-            if (m_Webcam == null || !m_Webcam.isPlaying || !m_Webcam.didUpdateThisFrame)
+            if (m_UseArLight || m_Webcam == null || !m_Webcam.isPlaying || !m_Webcam.didUpdateThisFrame)
                 return;
 
             float raw = SampleBrightness();
@@ -107,7 +154,6 @@ namespace EduQuest.AR
 
                 m_Webcam.GetPixels32(m_Pixels);
 
-                // Sample a grid across the frame (center-weighted world view)
                 long sum = 0;
                 int count = 0;
                 int stepX = Mathf.Max(1, w / sampleSize);
@@ -117,7 +163,6 @@ namespace EduQuest.AR
                     for (int x = 0; x < w; x += stepX)
                     {
                         var c = m_Pixels[y * w + x];
-                        // Perceived luminance
                         sum += (long)(0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b);
                         count++;
                     }
@@ -134,6 +179,9 @@ namespace EduQuest.AR
 
         void OnDestroy()
         {
+            if (m_ArCamera != null)
+                m_ArCamera.frameReceived -= OnArFrame;
+
             if (m_Webcam != null)
             {
                 m_Webcam.Stop();
@@ -142,7 +190,6 @@ namespace EduQuest.AR
         }
 
 #if UNITY_EDITOR
-        /// <summary>Editor-only test hook when no webcam is available.</summary>
         public void EditorDebugSetBrightness(float value)
         {
             m_Brightness = Mathf.Clamp01(value);

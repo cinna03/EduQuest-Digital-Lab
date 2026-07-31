@@ -17,10 +17,14 @@ AR chemistry lab (ALU AR/VR summative): form a **stable photographic crystal** f
 ## Wrong paths
 Wrong bottle · bad ml · light too early · fixer too early/late/much → different failure visuals + journal + score /100
 
-## Run
+## Run (desktop)
 1. Unity 6 → **EduQuest → Build Photographic Crystal Lab**  
-2. Play → allow camera  
-3. Dim the room while mixing  
+2. Play → allow camera → dim room while mixing  
+
+## Run (phone AR)
+1. Install AR Foundation **6.5** packages (see `docs/PHONE_AR_BUILD.md`)  
+2. XR Plug-in Management → ARCore / ARKit  
+3. Build And Run → scan table → tap plane → mix  
 
 **SIMULATION ONLY** — silver nitrate is hazardous in real life.
 

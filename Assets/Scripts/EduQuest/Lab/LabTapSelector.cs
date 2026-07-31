@@ -28,7 +28,8 @@ namespace EduQuest.Lab
 
         void Update()
         {
-            if (rayCamera == null) rayCamera = Camera.main;
+            if (rayCamera == null || !rayCamera.enabled)
+                rayCamera = Camera.main;
             if (rayCamera == null) return;
 
             Vector2 screen;
