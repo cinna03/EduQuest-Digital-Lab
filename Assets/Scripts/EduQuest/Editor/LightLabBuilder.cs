@@ -299,6 +299,9 @@ namespace EduQuest.EditorTools
             return text;
         }
 
+        static Button Btn(Transform parent, string name, string label, Vector2 aMin, Vector2 aMax)
+            => Btn(parent, name, label, aMin, aMax, new Color(0.14f, 0.5f, 0.72f));
+
         static Button Btn(Transform parent, string name, string label, Vector2 aMin, Vector2 aMax, Color color)
         {
             var go = new GameObject(name, typeof(RectTransform));
