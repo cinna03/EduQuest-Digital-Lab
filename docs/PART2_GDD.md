@@ -1,83 +1,57 @@
-# EduQuest Light & Life — Game Design Document
-## AR multi-factor biology growth lab (vertical slice)
+# EduQuest Photographic Crystal Puzzle — GDD
+## AR chemistry lab (AgCl-inspired simulation)
 
-**Author:** Cannelle Mwiza
-**Program:** African Leadership University — AR/VR Specialization (Individual)
-**App name:** **EduQuest Light & Life**
-**Version:** 2.0 — Hypothesis + water-at-table + light/dark growth lab
-**Date:** 31 July 2026
+**Author:** Cannelle Mwiza  
+**Program:** ALU — AR/VR Specialization (Individual)  
+**App:** **EduQuest Photographic Crystal Puzzle**  
+**Version:** 5.0  
+**Date:** 31 July 2026  
 
-**Publishing:** Google Doc or Medium → **Anyone with the link can view** (incognito-test).
+**Publishing:** Google Doc / Medium → Anyone with the link.
 
 ---
 
-# HIGH-LEVEL CONCEPT / DESIGN
+## Concept
 
-## Concept statement
+Students solve a lab puzzle: in **darkness**, mix measured **silver nitrate** and **sodium chloride** to form light-sensitive **silver chloride** (white precipitate), **stabilize** with sodium thiosulfate, then use **real light** to activate a stable silver-blue crystal. Six bottles (3 correct, 3 traps), measurements, timing, and light/dark create fair failure states. **Simulation only** — AgNO₃ is hazardous in reality.
 
-**EduQuest Light & Life** is an AR-first biology growth lab. Students form a hypothesis, place a seedling on their table, water it only when facing the table (not a lamp), then use **real bright light** and **real darkness** to drive photosynthesis, oxygen production, night mode, and failure states (wilt / flood / scorch). A UI “Add light” button cannot finish the experiment — the room is the controller.
+## USPs
 
-## Genre(s)
+1. Puzzle chemistry (not “mix two and win”)  
+2. Real light/dark via camera sensor  
+3. Measurements + timing matter  
+4. Distinct failure visuals + lab journal  
+5. Score /100 (chem, measure, light, timing)  
+6. 60 FPS performance target  
 
-Educational AR simulation / inquiry-based biology lab.
-
-## Unique Selling Points
-
-1. Hypothesis → trial → result
-2. Multi-factor controls: moisture + real light + real dark
-3. Table-view constraint for watering
-4. Science meters (light, water, energy, O₂, stage)
-5. Failure states (wilt / flood / scorch)
-6. **60 FPS** performance target documented
-
-## Platform / Scope
+## Platform
 
 | Item | Decision |
 |------|----------|
-| Platform | Unity 6 URP; webcam light sensing |
-| In scope | Full guided growth trial + Reflect + performance notes |
-| Out of scope | Production AR Foundation plane anchors this slice |
-
----
-
-# DETAILED DESIGN
+| Engine | Unity 6 URP |
+| AR | Desktop camera preview (table place + light sensor); phone AR Foundation optional later (6.5+) |
+| Scope | One guided puzzle + Reflect + safety |
 
 ## Core loop
 
-Hypothesis → Place → Water at table → Seek bright light → Grow → Seek dark → Night mode → Hypothesis check → Reflect
+Place beaker → Dark → 10 ml AgNO₃ → 10 ml NaCl → wait 5s → 5 ml fixer → Bright light → Glow / Fail → Reflect
 
-## Cause → effect
+## Cause → effect (summary)
 
-| Action | Result |
-|--------|--------|
-| Water while facing lamp | Blocked |
-| Balanced water + bright light | Energy ↑, O₂ ↑, seedling |
-| Bright + dry soil | Scorch risk |
-| Flood + dark | Flood / rot risk |
-| Real darkness after growth | Night mode |
+| Mistake | Outcome |
+|---------|---------|
+| Light ON while forming AgCl | Burnt silver residue |
+| Wrong bottle (D/E/F) | Contaminated solution |
+| Bad 10:10 ratio | Incomplete / weak / unstable mix |
+| Fixer too early | No crystal |
+| Fixer too much | Dissolved crystal |
+| Fixer too little + light | Grey unstable crystal |
+| Correct path + light last | Stable photographic crystal |
 
-## Systems
+## Scoring
 
-`WorldLightSensor`, `GuidedLightLabExperiment` (`ILabExperiment`), `LightLabBuilder`, `ReflectionUI`, `LabPerformanceSettings`.
+Correct chemicals 30 · Measurements 30 · Light condition 20 · Timing 20 = **100**
 
----
+## Performance
 
-# PERFORMANCE CONSIDERATIONS
-
-## FPS benchmark
-
-| Item | Value |
-|------|--------|
-| **Target FPS** | **60 FPS** |
-| Floor | ≥ 50 FPS with camera preview + particles |
-
-## Techniques
-
-1. Single lab active
-2. MaterialPropertyBlock for soil/leaf colors
-3. Static table props
-4. Downsampled camera luminance sampling
-5. Simple meshes
-6. Occlusion culling unused (tiny volume)
-
-**Insert Profiler screenshots when publishing.**
+Target **60 FPS**. Cap particles; document Profiler in submission.

@@ -1,8 +1,8 @@
-# EduQuest Light & Life — Vertical Slice Submission Hub (35 pts)
+# EduQuest Photographic Crystal — Submission Hub (35 pts)
 
-**Student:** Cannelle Mwiza
-**App:** EduQuest Light & Life (AR Growth Lab)
-**Build:** **EduQuest → Build Light Lab Scene**
+**Student:** Cannelle Mwiza  
+**App:** EduQuest Photographic Crystal Puzzle  
+**Build:** **EduQuest → Build Photographic Crystal Lab**  
 **GitHub:** https://github.com/cinna03/EduQuest-Digital-Lab
 
 | Deliverable | URL |
@@ -12,6 +12,6 @@
 | **GDD (+ Performance, 60 FPS)** | [PASTE] |
 
 ## How graders run it
-1. Clone → Unity 6 → **EduQuest → Build Light Lab Scene**
+1. Clone → Unity 6 → **EduQuest → Build Photographic Crystal Lab**
 2. Play → allow camera
-3. Hypothesis → Place → Water at table → Bright → Dark → Result → Reflect
+3. Dim room → place beaker → A 10 ml → B 10 ml → wait → C 5 ml → bright light → glow → Reflect

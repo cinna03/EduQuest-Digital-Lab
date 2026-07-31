@@ -1,13 +1,16 @@
-# Light & Life — AR design rule
+# Photographic Crystal — AR design rule
 
-If UI-only finishes the lab with the camera covered, the design failed.
+If the player can win with the room always bright, the puzzle failed — **darkness then light** must matter.
 
-| Step | Real-world action | Reaction |
-|------|-------------------|----------|
-| Hypothesis | Choose A/B/C | Locks prediction |
-| Place | Put seedling on table | Plant appears |
-| Water | Face table + Water | Moisture ↑ / flood risk |
-| Light | Point at bright source | Energy/O₂ ↑ |
-| Dark | Cover lens | Night mode |
+| Stage | Condition | Action |
+|-------|-----------|--------|
+| Mix | LIGHT OFF | 10 ml AgNO₃ + 10 ml NaCl |
+| Settle | LIGHT OFF | Wait ~5s |
+| Fix | LIGHT OFF | 5 ml thiosulfate |
+| Activate | LIGHT ON | Stable silver-blue crystal |
 
-Build: **EduQuest → Build Light Lab Scene**
+## Build
+**EduQuest → Build Photographic Crystal Lab**
+
+## Safety
+Simulation only. Silver nitrate is corrosive / oxidizer / environmentally toxic in real life.
