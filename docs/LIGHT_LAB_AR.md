@@ -1,23 +1,13 @@
-# Light & Life — why this needs AR (not just Unity UI)
+# Light & Life — AR design rule
 
-## The rule
-If a student can finish the lab by only clicking buttons in a dark room with the camera covered, **the design failed**.
+If UI-only finishes the lab with the camera covered, the design failed.
 
-## What the student controls
-| Guide says | Student does in the real world | Lab reaction |
-|------------|--------------------------------|--------------|
-| Place on table | Anchors seedling on the lab table | Plant appears in their space |
-| Find LIGHT | Point device at window / lamp | Meter → BRIGHT → photosynthesis / O₂ / energy |
-| Find DARKNESS | Cover lens or face a dark corner | Meter → DARK → night mode |
+| Step | Real-world action | Reaction |
+|------|-------------------|----------|
+| Hypothesis | Choose A/B/C | Locks prediction |
+| Place | Put seedling on table | Plant appears |
+| Water | Face table + Water | Moisture ↑ / flood risk |
+| Light | Point at bright source | Energy/O₂ ↑ |
+| Dark | Cover lens | Night mode |
 
-There is **no “Add light” slider** that completes the experiment.
-
-## Tech
-- Live **webcam / device camera** samples brightness (`WorldLightSensor`)
-- Same design maps to **AR Foundation light estimation** on phone builds later
-
-## Build
-**EduQuest → Build Light Lab Scene (AR)**
-
-## Pitch line for graders
-“The physical environment is the controller. AR isn’t a skin on a desktop sim — without real light and dark, the biology loop does not advance.”
+Build: **EduQuest → Build Light Lab Scene**

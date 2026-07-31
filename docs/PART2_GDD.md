@@ -1,19 +1,13 @@
-# EduQuest Anatomy Atlas — Game Design Document  
-## EduQuest Digital Lab · Biology vertical slice
+# EduQuest Light & Life — Game Design Document
+## AR multi-factor biology growth lab (vertical slice)
 
-**Author:** Cannelle Mwiza  
-**Program:** African Leadership University — AR/VR Specialization (Individual)  
-**App name:** **EduQuest Anatomy Atlas**  
-**Version:** 3.1 — EduQuest Anatomy Atlas branding  
-**Date:** 31 July 2026  
+**Author:** Cannelle Mwiza
+**Program:** African Leadership University — AR/VR Specialization (Individual)
+**App name:** **EduQuest Light & Life**
+**Version:** 2.0 — Hypothesis + water-at-table + light/dark growth lab
+**Date:** 31 July 2026
 
 **Publishing:** Google Doc or Medium → **Anyone with the link can view** (incognito-test).
-
----
-
-## Working title
-
-**EduQuest Anatomy Atlas**
 
 ---
 
@@ -21,59 +15,28 @@
 
 ## Concept statement
 
-**EduQuest Anatomy Atlas** is a student-friendly biology laboratory where learners peel a human body from the outer skin inward through muscles, organs, and nerves, click structures for short facts, and reflect on what they discovered — discovery learning instead of memorizing a flat diagram.
+**EduQuest Light & Life** is an AR-first biology growth lab. Students form a hypothesis, place a seedling on their table, water it only when facing the table (not a lamp), then use **real bright light** and **real darkness** to drive photosynthesis, oxygen production, night mode, and failure states (wilt / flood / scorch). A UI “Add light” button cannot finish the experiment — the room is the controller.
 
 ## Genre(s)
 
-Educational simulation / interactive anatomy explorer (desktop 3D; AR placement optional later).
-
-## Target audience
-
-| Dimension | Detail |
-|-----------|--------|
-| Primary | University / upper-secondary students in developing contexts |
-| Secondary | Educators wanting safe digital dissection-style exploration |
-| Evaluators | Graders on desktop Unity without headset |
-| Age | ~15–24 |
-| Motivation | Curiosity about “what’s under the skin,” systems thinking |
-
-## Game Persona and POV
-
-- **Persona:** Amina, 19 — wants to understand body systems for health class without access to a physical cadaver lab.  
-- **POV:** Young investigator exploring a portable digital anatomy station.  
-- **Emotions:** Curiosity, clarity, calm confidence.  
-- **Engagement:** Peel layers → click → short fact → reflect.
+Educational AR simulation / inquiry-based biology lab.
 
 ## Unique Selling Points
 
-1. Layer peel (Skin → Muscles → Organs → Nerves)  
-2. Clickable teaching hotspots with plain-language facts  
-3. Orbit/zoom inspection (spatial learning)  
-4. Reflection beat for explicit learning  
-5. Import path for higher-fidelity anatomy FBX without rewriting code  
+1. Hypothesis → trial → result
+2. Multi-factor controls: moisture + real light + real dark
+3. Table-view constraint for watering
+4. Science meters (light, water, energy, O₂, stage)
+5. Failure states (wilt / flood / scorch)
+6. **60 FPS** performance target documented
 
-## Visual and Audio Style
-
-Clean dark lab backdrop; readable colors per layer (skin tone, muscle red, organ tones, nerve yellow). Soft UI panels. Optional ambient; usable muted.
-
-**Figures:** `docs/diagrams/flowchart.png`, `uml.png`, `ux_wireframe.png`
-
-## Game World Fiction
-
-You open **EduQuest Anatomy Atlas**, EduQuest’s biology station. A human form waits. Peel the outer layer to reveal muscles, then organs, then nerve pathways. Click a structure to learn its role. Reflect before you leave.
-
-## Monetization
-
-Academic prototype this trimester. Future: free learner labs + optional institutional anatomy packs.
-
-## Platform / Tech / Scope
+## Platform / Scope
 
 | Item | Decision |
 |------|----------|
-| Platform | Desktop Unity 6 (URP) primary |
-| Engine | Unity 6 |
-| In scope | 4 layers, clickable parts, orbit camera, reflection, import hook |
-| Out of scope | Medical-grade full atlas, every nerve, multiplayer, LMS |
+| Platform | Unity 6 URP; webcam light sensing |
+| In scope | Full guided growth trial + Reflect + performance notes |
+| Out of scope | Production AR Foundation plane anchors this slice |
 
 ---
 
@@ -81,30 +44,21 @@ Academic prototype this trimester. Future: free learner labs + optional institut
 
 ## Core loop
 
-Select layer → Orbit/inspect → Click structure → Read fact → Reflect → Retry  
+Hypothesis → Place → Water at table → Seek bright light → Grow → Seek dark → Night mode → Hypothesis check → Reflect
 
-## Objectives
+## Cause → effect
 
-Understand that the body is layered systems; name a few structures; connect structure → function in one sentence reflection.
+| Action | Result |
+|--------|--------|
+| Water while facing lamp | Blocked |
+| Balanced water + bright light | Energy ↑, O₂ ↑, seedling |
+| Bright + dry soil | Scorch risk |
+| Flood + dark | Flood / rot risk |
+| Real darkness after growth | Night mode |
 
-## Game systems
+## Systems
 
-`AnatomyExplorer` (lab), `AnatomyPartHotspot` (selectables), `AnatomyOrbitCamera`, layer slider UI, `ReflectionUI`, optional imported model mapper.
-
-## Interactivity
-
-| Type | How |
-|------|-----|
-| Action/Feedback | Layer slider peels body; click highlights + fact |
-| ST Cog | Predict what’s under skin; verify by peeling |
-| LT Cog | Systems view of anatomy |
-| Emotional | Curiosity / “aha” |
-| Social | Classroom share of reflection later |
-| Cultural | Accessible STEM without physical lab reagents/cadavers |
-
-## Flowchart / UML
-
-Insert `docs/diagrams/flowchart.png` and `uml.png` (update mentally: AnatomyExplorer replaces multi-lab hub).
+`WorldLightSensor`, `GuidedLightLabExperiment` (`ILabExperiment`), `LightLabBuilder`, `ReflectionUI`, `LabPerformanceSettings`.
 
 ---
 
@@ -115,29 +69,15 @@ Insert `docs/diagrams/flowchart.png` and `uml.png` (update mentally: AnatomyExpl
 | Item | Value |
 |------|--------|
 | **Target FPS** | **60 FPS** |
-| Platform | Unity Editor / Mac standalone |
-| Floor | ≥ 50 FPS while orbiting + switching all 4 layers |
+| Floor | ≥ 50 FPS with camera preview + particles |
 
 ## Techniques
 
-1. **Static batching** on non-interactive shells where marked  
-2. **Mipmaps** on imported textures  
-3. **MaterialPropertyBlock** highlight (no material clone spam)  
-4. **Layer visibility culling** — inactive layers `SetActive(false)` (not drawn)  
-5. **IL2CPP** for future device/AR builds  
-6. **Occlusion culling** — examined, **not used** (single small lab volume)
+1. Single lab active
+2. MaterialPropertyBlock for soil/leaf colors
+3. Static table props
+4. Downsampled camera luminance sampling
+5. Simple meshes
+6. Occlusion culling unused (tiny volume)
 
-**Insert Profiler screenshots P1–P3 when publishing.**  
-Summary card: `docs/diagrams/performance_summary.png`
-
-## Scope not achieved
-
-- Full medical atlas of every muscle/nerve  
-- Optional AR table placement (deferred)  
-- Photoreal cadaver rendering  
-
----
-
-# RUBRIC NOTES
-
-Aligns with vertical slice: interactive, immersive 3D biology lab matching this GDD. Creativity via layered exploration + importable assets path.
+**Insert Profiler screenshots when publishing.**

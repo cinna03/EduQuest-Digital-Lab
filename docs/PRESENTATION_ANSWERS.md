@@ -1,13 +1,11 @@
-# Presentation answers — EduQuest Anatomy Atlas
+# Presentation answers — Light & Life Growth Lab
 
-**Pitch:** “EduQuest Anatomy Atlas lets students peel Skin → Muscles → Organs → Nerves, click structures for facts, and reflect — a digital biology lab slice of EduQuest.”
+**Pitch:** Hypothesis, table watering, real light/dark. Wrong mixes wilt, flood, or scorch — the room is the controller.
 
-**OOP / patterns:** `ILabExperiment`; `AnatomyExplorer` orchestrates layers; `AnatomyPartHotspot` encapsulates name/fact/highlight; import mapper uses name heuristics.
+**OOP:** `ILabExperiment`, `WorldLightSensor`, `GuidedLightLabExperiment`, builder.
 
-**Profiler:** Window → Profiler → Play → peel all layers + orbit → show frame time vs **16.6 ms (60 FPS)**.
+**Profiler:** Full trial vs 16.6 ms (60 FPS).
 
-**Scope not achieved:** Full medical atlas of every muscle/nerve; AR table place (deferred); photoreal cadaver mesh (optional FBX import).
+**AR:** Camera luminance; table-view watering; bright/dark phases.
 
-**AR/VR interactions:** Spatial 3D orbit/zoom inspection + layered reveal. AR Foundation placement is next milestone.
-
-**Performance:** Layer `SetActive` culling, MaterialPropertyBlock highlights, static shells, mipmaps on imports, IL2CPP for device builds; occlusion unused (tiny scene).
+**Performance:** 60 FPS; MPB; one lab; downsampled luminance; simple meshes.

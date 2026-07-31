@@ -11,7 +11,7 @@ using UnityEngine.UI;
 namespace EduQuest.EditorTools
 {
     /// <summary>
-    /// AR-native Light & Life lab: real camera brightness drives photosynthesis / night mode.
+    /// AR Growth Lab scene: hypothesis, table watering, real light/dark, science meters.
     /// </summary>
     public static class LightLabBuilder
     {
@@ -52,7 +52,6 @@ namespace EduQuest.EditorTools
 
             var canvas = CreateCanvas();
 
-            // Camera preview (AR viewfinder) — left side
             var previewPanel = Panel(canvas.transform, "CameraPreviewPanel", new Color(0.02f, 0.02f, 0.03f, 0.95f));
             Pin(previewPanel, 0.02f, 0.42f, 0.38f, 0.88f);
             var preview = new GameObject("CameraPreview", typeof(RectTransform));
@@ -63,76 +62,63 @@ namespace EduQuest.EditorTools
             var previewLabel = Label(previewPanel.transform, "PreviewLabel", "LIVE CAMERA (world light sensor)", 11, TextAnchor.UpperCenter);
             Pin(previewLabel.rectTransform, 0.05f, 0.88f, 0.95f, 0.98f);
             previewLabel.color = new Color(0.7f, 0.85f, 0.95f);
-
             sensor.SetPreview(raw);
 
-            // Top
             var top = Panel(canvas.transform, "HUD", new Color(0.04f, 0.06f, 0.09f, 0.92f));
             Pin(top, 0f, 0.9f, 1f, 1f);
-            var header = Label(top.transform, "Header", "EduQuest · Light & Life (AR)", 18, TextAnchor.MiddleLeft);
-            Pin(header.rectTransform, 0.02f, 0.15f, 0.55f, 0.85f);
+            var header = Label(top.transform, "Header", "EduQuest · Light & Life (AR Growth Lab)", 17, TextAnchor.MiddleLeft);
+            Pin(header.rectTransform, 0.02f, 0.15f, 0.52f, 0.85f);
             header.fontStyle = FontStyle.Bold;
-            var prompt = Label(top.transform, "Prompt", "Your room’s light controls the plant — not a fake slider.", 12, TextAnchor.MiddleLeft);
-            Pin(prompt.rectTransform, 0.56f, 0.15f, 0.84f, 0.85f);
+            var prompt = Label(top.transform, "Prompt", "Hypothesis → water at table → real light → real dark → result", 11, TextAnchor.MiddleLeft);
+            Pin(prompt.rectTransform, 0.53f, 0.15f, 0.84f, 0.85f);
             var status = Label(top.transform, "Status", "", 1, TextAnchor.MiddleLeft);
             Pin(status.rectTransform, 0f, 0f, 0.01f, 0.01f);
             status.color = Color.clear;
             var resetBtn = Btn(top.transform, "ResetButton", "Reset", new Vector2(0.85f, 0.2f), new Vector2(0.92f, 0.8f), new Color(0.25f, 0.28f, 0.34f));
             var reflectBtn = Btn(top.transform, "ReflectButton", "Reflect", new Vector2(0.93f, 0.2f), new Vector2(0.99f, 0.8f), new Color(0.14f, 0.48f, 0.62f));
 
-            // Guide
+            var hudPanel = Panel(canvas.transform, "ScienceHudPanel", new Color(0.04f, 0.06f, 0.09f, 0.9f));
+            Pin(hudPanel, 0.02f, 0.28f, 0.38f, 0.41f);
+            var scienceHud = Label(hudPanel.transform, "ScienceHud", "Meters loading…", 11, TextAnchor.UpperLeft);
+            Pin(scienceHud.rectTransform, 0.04f, 0.08f, 0.96f, 0.92f);
+            scienceHud.color = new Color(0.8f, 0.9f, 0.85f);
+
             var guide = Panel(canvas.transform, "GuidePanel", new Color(0.05f, 0.08f, 0.11f, 0.94f));
             Pin(guide, 0.62f, 0.22f, 0.985f, 0.88f);
-            var stepLabel = Label(guide.transform, "StepLabel", "Step 1 / 5", 12, TextAnchor.UpperLeft);
+            var stepLabel = Label(guide.transform, "StepLabel", "Step 1 / 8", 12, TextAnchor.UpperLeft);
             Pin(stepLabel.rectTransform, 0.07f, 0.9f, 0.93f, 0.98f);
             stepLabel.color = new Color(0.5f, 0.85f, 0.95f);
-            var guideTitle = Label(guide.transform, "GuideTitle", "Place", 18, TextAnchor.UpperLeft);
+            var guideTitle = Label(guide.transform, "GuideTitle", "Hypothesis", 18, TextAnchor.UpperLeft);
             Pin(guideTitle.rectTransform, 0.07f, 0.76f, 0.93f, 0.9f);
             guideTitle.fontStyle = FontStyle.Bold;
-            var guideBody = Label(guide.transform, "GuideBody", "", 13, TextAnchor.UpperLeft);
+            var guideBody = Label(guide.transform, "GuideBody", "", 12, TextAnchor.UpperLeft);
             Pin(guideBody.rectTransform, 0.07f, 0.34f, 0.93f, 0.76f);
             var reaction = Label(guide.transform, "ReactionText", "Reaction: —", 12, TextAnchor.UpperLeft);
             Pin(reaction.rectTransform, 0.07f, 0.12f, 0.93f, 0.34f);
             reaction.color = new Color(0.95f, 0.85f, 0.45f);
             var hintBtn = Btn(guide.transform, "HintButton", "Repeat hint", new Vector2(0.07f, 0.03f), new Vector2(0.93f, 0.11f), new Color(0.2f, 0.28f, 0.36f));
 
-            // Meter + actions
             var bar = Panel(canvas.transform, "ActionBar", new Color(0.04f, 0.06f, 0.09f, 0.94f));
-            Pin(bar, 0f, 0f, 1f, 0.2f);
+            Pin(bar, 0f, 0f, 1f, 0.26f);
 
-            var meterBg = new GameObject("MeterBg", typeof(RectTransform));
-            meterBg.transform.SetParent(bar.transform, false);
-            Pin(meterBg.GetComponent<RectTransform>(), 0.02f, 0.55f, 0.55f, 0.88f);
-            meterBg.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
-            var meterFillGo = new GameObject("MeterFill", typeof(RectTransform));
-            meterFillGo.transform.SetParent(meterBg.transform, false);
-            Stretch(meterFillGo.GetComponent<RectTransform>());
-            var meterFill = meterFillGo.AddComponent<Image>();
-            meterFill.color = new Color(1f, 0.9f, 0.3f);
-            meterFill.type = Image.Type.Filled;
-            meterFill.fillMethod = Image.FillMethod.Horizontal;
-            meterFill.fillAmount = 0.2f;
+            var meterFill = FillBar(bar.transform, "LightMeter", 0.02f, 0.72f, 0.36f, 0.92f, new Color(1f, 0.9f, 0.3f));
+            var waterFill = FillBar(bar.transform, "WaterMeter", 0.02f, 0.48f, 0.36f, 0.68f, new Color(0.25f, 0.65f, 0.85f));
+            var energyFill = FillBar(bar.transform, "EnergyMeter", 0.02f, 0.24f, 0.36f, 0.44f, new Color(0.35f, 0.85f, 0.4f));
+            var meterLabel = Label(bar.transform, "MeterLabel", "World light: —", 11, TextAnchor.MiddleLeft);
+            Pin(meterLabel.rectTransform, 0.02f, 0.02f, 0.36f, 0.2f);
 
-            var meterLabel = Label(bar.transform, "MeterLabel", "World light: —", 13, TextAnchor.MiddleLeft);
-            Pin(meterLabel.rectTransform, 0.02f, 0.15f, 0.55f, 0.5f);
-
-            var placeBtn = Btn(bar.transform, "PlaceButton", "Place seedling", new Vector2(0.58f, 0.5f), new Vector2(0.78f, 0.88f), new Color(0.2f, 0.55f, 0.35f));
-            var confirmBtn = Btn(bar.transform, "ConfirmButton", "I'm stuck? Hint", new Vector2(0.8f, 0.5f), new Vector2(0.98f, 0.88f), new Color(0.25f, 0.35f, 0.45f));
-            var why = Label(bar.transform, "WhyAR", "No “Add light” button on purpose — move your camera in the real world.", 11, TextAnchor.MiddleLeft);
-            Pin(why.rectTransform, 0.58f, 0.08f, 0.98f, 0.42f);
+            var hypA = Btn(bar.transform, "HypA", "A · Light+Water", new Vector2(0.38f, 0.7f), new Vector2(0.58f, 0.94f), new Color(0.16f, 0.45f, 0.55f));
+            var hypB = Btn(bar.transform, "HypB", "B · Light only", new Vector2(0.6f, 0.7f), new Vector2(0.78f, 0.94f), new Color(0.16f, 0.45f, 0.55f));
+            var hypC = Btn(bar.transform, "HypC", "C · Dark faster", new Vector2(0.8f, 0.7f), new Vector2(0.98f, 0.94f), new Color(0.16f, 0.45f, 0.55f));
+            var placeBtn = Btn(bar.transform, "PlaceButton", "Place seedling", new Vector2(0.38f, 0.38f), new Vector2(0.58f, 0.64f), new Color(0.2f, 0.55f, 0.35f));
+            var waterBtn = Btn(bar.transform, "WaterButton", "Water plant", new Vector2(0.6f, 0.38f), new Vector2(0.78f, 0.64f), new Color(0.2f, 0.4f, 0.7f));
+            var why = Label(bar.transform, "WhyAR", "Water only at table view · Growth needs real BRIGHT · Night needs real DARK", 11, TextAnchor.MiddleLeft);
+            Pin(why.rectTransform, 0.38f, 0.05f, 0.98f, 0.32f);
             why.color = new Color(0.75f, 0.78f, 0.85f);
 
             lab.Bind(
-                sensor,
-                stepLabel,
-                guideTitle,
-                guideBody,
-                reaction,
-                meterLabel,
-                meterFill,
-                placeBtn,
-                confirmBtn,
-                hintBtn,
+                sensor, stepLabel, guideTitle, guideBody, reaction, meterLabel, scienceHud,
+                meterFill, waterFill, energyFill, placeBtn, waterBtn, hintBtn, hypA, hypB, hypC,
                 station.transform.Find("Plant").gameObject,
                 station.transform.Find("Plant/Sprout"),
                 station.transform.Find("Plant/Leaves"),
@@ -141,7 +127,6 @@ namespace EduQuest.EditorTools
                 station.transform.Find("Plant/PlantGlow").GetComponent<Light>(),
                 station.transform.Find("PlacementRing").gameObject);
 
-            // Reflection
             var reflectionGo = new GameObject("ReflectionUI");
             var reflection = reflectionGo.AddComponent<ReflectionUI>();
             var refPanel = Panel(canvas.transform, "ReflectionPanel", new Color(0.05f, 0.09f, 0.12f, 0.96f));
@@ -163,7 +148,6 @@ namespace EduQuest.EditorTools
 
             var hub = new GameObject("LabHub").AddComponent<LabHub>();
             hub.Configure(null, header, prompt, status, reflection, new ILabExperiment[] { lab });
-            // Don't auto-open via hub Enter twice — OpenExperiment calls Enter
             hub.OpenExperiment(0);
 
             resetBtn.onClick.AddListener(() => lab.ResetExperiment());
@@ -177,9 +161,26 @@ namespace EduQuest.EditorTools
             AssetDatabase.Refresh();
 
             EditorUtility.DisplayDialog(
-                "Light & Life (AR)",
-                "Scene ready.\n\nPlay → allow camera → Place seedling →\npoint at a BRIGHT light, then cover for DARK.\n\nThe room is the controller.",
+                "Light & Life (AR Growth Lab)",
+                "1) Hypothesis A/B/C\n2) Place\n3) Table view → Water\n4) BRIGHT light grow\n5) DARK night\n6) Result → Reflect",
                 "OK");
+        }
+
+        static Image FillBar(Transform parent, string name, float x0, float y0, float x1, float y1, Color color)
+        {
+            var bg = new GameObject(name + "Bg", typeof(RectTransform));
+            bg.transform.SetParent(parent, false);
+            Pin(bg.GetComponent<RectTransform>(), x0, y0, x1, y1);
+            bg.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
+            var fillGo = new GameObject(name, typeof(RectTransform));
+            fillGo.transform.SetParent(bg.transform, false);
+            Stretch(fillGo.GetComponent<RectTransform>());
+            var fill = fillGo.AddComponent<Image>();
+            fill.color = color;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillAmount = 0.15f;
+            return fill;
         }
 
         static GameObject BuildPlantStation()
@@ -239,7 +240,6 @@ namespace EduQuest.EditorTools
             glow.type = LightType.Point;
             glow.range = 2.5f;
             glow.enabled = false;
-
             return root;
         }
 
@@ -313,7 +313,7 @@ namespace EduQuest.EditorTools
             rt.offsetMax = Vector2.zero;
             go.AddComponent<Image>().color = color;
             var btn = go.AddComponent<Button>();
-            var text = Label(go.transform, "Label", label, 13, TextAnchor.MiddleCenter);
+            var text = Label(go.transform, "Label", label, 12, TextAnchor.MiddleCenter);
             text.fontStyle = FontStyle.Bold;
             Stretch(text.rectTransform);
             return btn;
@@ -328,7 +328,7 @@ namespace EduQuest.EditorTools
             var text = Label(go.transform, "Text", "", 15, TextAnchor.UpperLeft);
             Stretch(text.rectTransform, 8f);
             text.color = Color.black;
-            var ph = Label(go.transform, "Placeholder", "Why couldn’t a normal UI button replace the camera here?", 14, TextAnchor.UpperLeft);
+            var ph = Label(go.transform, "Placeholder", "Was your hypothesis supported? Why did the camera matter?", 14, TextAnchor.UpperLeft);
             Stretch(ph.rectTransform, 8f);
             ph.color = new Color(0.4f, 0.4f, 0.4f);
             input.textComponent = text;
