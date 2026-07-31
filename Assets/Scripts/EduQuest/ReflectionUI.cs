@@ -25,6 +25,17 @@ namespace EduQuest
             m_Feedback = feedback;
             m_Submit = submit;
             m_Close = close;
+            WireButtons();
+            Hide();
+        }
+
+        void OnEnable()
+        {
+            WireButtons();
+        }
+
+        void WireButtons()
+        {
             if (m_Submit != null)
             {
                 m_Submit.onClick.RemoveAllListeners();
@@ -35,7 +46,6 @@ namespace EduQuest
                 m_Close.onClick.RemoveAllListeners();
                 m_Close.onClick.AddListener(Hide);
             }
-            Hide();
         }
 
         public void Show(string experimentTitle, string discoveryPrompt)

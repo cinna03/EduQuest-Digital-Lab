@@ -66,6 +66,9 @@ namespace EduQuest.EditorTools
             var backBtn = CreateButton(hud.transform, "MenuButton", "Labs", new Vector2(0.82f, 0.55f), new Vector2(0.96f, 0.9f));
             var resetBtn = CreateButton(hud.transform, "ResetButton", "Reset", new Vector2(0.82f, 0.2f), new Vector2(0.96f, 0.5f));
             var reflectBtn = CreateButton(hud.transform, "ReflectButton", "Reflect", new Vector2(0.66f, 0.2f), new Vector2(0.8f, 0.5f));
+            AddMenuAction(backBtn, LabMenuButton.ActionKind.ShowMenu);
+            AddMenuAction(resetBtn, LabMenuButton.ActionKind.Reset);
+            AddMenuAction(reflectBtn, LabMenuButton.ActionKind.Reflect);
 
             // Menu
             var menu = CreatePanel(canvas.transform, "MenuPanel", new Color(0.06f, 0.1f, 0.14f, 0.94f));
@@ -76,6 +79,9 @@ namespace EduQuest.EditorTools
             var b1 = CreateButton(menu.transform, "GerminationButton", "1 · Science: Germination", new Vector2(0.2f, 0.48f), new Vector2(0.8f, 0.62f));
             var b2 = CreateButton(menu.transform, "PendulumButton", "2 · Physics: Pendulum", new Vector2(0.2f, 0.32f), new Vector2(0.8f, 0.46f));
             var b3 = CreateButton(menu.transform, "FlameButton", "3 · Chemistry: Dancing Blue Flame", new Vector2(0.2f, 0.16f), new Vector2(0.8f, 0.3f));
+            AddMenuAction(b1, LabMenuButton.ActionKind.OpenGermination);
+            AddMenuAction(b2, LabMenuButton.ActionKind.OpenPendulum);
+            AddMenuAction(b3, LabMenuButton.ActionKind.OpenFlame);
 
             // Reflection
             var reflectionGo = new GameObject("ReflectionUI");
@@ -149,28 +155,24 @@ namespace EduQuest.EditorTools
             flameControls.SetActive(false);
 
             var hubGo = new GameObject("LabHub");
-            var hub = hubGo.AddComponent<LabHub>();
-            hub.Configure(menu, header, prompt, status, reflection, new ILabExperiment[] { germ, pend, flame });
+            hubGo.AddComponent<LabHub>();
+            new GameObject("LabSceneController").AddComponent<LabSceneController>();
 
-            void ShowControls(int i)
-            {
-                germControls.SetActive(i == 0);
-                pendControls.SetActive(i == 1);
-                flameControls.SetActive(i == 2);
-            }
-
-            b1.onClick.AddListener(() => { hub.OpenExperiment(0); ShowControls(0); });
-            b2.onClick.AddListener(() => { hub.OpenExperiment(1); ShowControls(1); });
-            b3.onClick.AddListener(() => { hub.OpenExperiment(2); ShowControls(2); });
-            backBtn.onClick.AddListener(() => { hub.ShowMenu(); ShowControls(-1); germControls.SetActive(false); pendControls.SetActive(false); flameControls.SetActive(false); });
-            resetBtn.onClick.AddListener(() => hub.ResetActive());
-            reflectBtn.onClick.AddListener(() => hub.OpenReflection());
-
+            EditorSceneManager.MarkSceneDirty(scene);
             Directory.CreateDirectory("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddBuildSettings(ScenePath);
             AssetDatabase.Refresh();
-            EditorUtility.DisplayDialog("EduQuest", "Scene built:\n" + ScenePath + "\n\nPress Play, pick a lab, experiment, then Reflect.", "OK");
+            EditorUtility.DisplayDialog("EduQuest", "Scene rebuilt:\n" + ScenePath + "\n\n1) Click the Game view\n2) Press Play\n3) Click a lab button\n\nConsole should log clicks.", "OK");
+        }
+
+        static void AddMenuAction(Button button, LabMenuButton.ActionKind action)
+        {
+            if (button == null) return;
+            var click = button.gameObject.GetComponent<LabMenuButton>();
+            if (click == null) click = button.gameObject.AddComponent<LabMenuButton>();
+            click.SetAction(action);
+            EditorUtility.SetDirty(click);
         }
 
         static GameObject BuildGerminationStation()
@@ -347,14 +349,14 @@ namespace EduQuest.EditorTools
 
         static void EnsureEventSystem()
         {
-            if (Object.FindAnyObjectByType<EventSystem>() != null) return;
+            var existing = Object.FindAnyObjectByType<EventSystem>();
+            if (existing != null)
+                Object.DestroyImmediate(existing.gameObject);
+
             var es = new GameObject("EventSystem");
             es.AddComponent<EventSystem>();
-#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
-            es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-#else
             es.AddComponent<StandaloneInputModule>();
-#endif
+            es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
         }
 
         static GameObject CreatePanel(Transform parent, string name, Color color)
@@ -378,6 +380,7 @@ namespace EduQuest.EditorTools
             text.alignment = anchor;
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
             return text;
         }
 
