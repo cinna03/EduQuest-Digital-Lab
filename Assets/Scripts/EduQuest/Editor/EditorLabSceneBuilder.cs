@@ -1,0 +1,166 @@
+#if UNITY_EDITOR
+using System.IO;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+namespace EduQuest.EditorTools
+{
+    /// <summary>
+    /// Desktop workspace scene: lab glassware is placed in-edit so you can
+    /// select and tweak assets without Play Mode or a fake scan.
+    /// </summary>
+    public static class EditorLabSceneBuilder
+    {
+        public const string ScenePath = "Assets/Scenes/EduQuestLab_EditorTest.unity";
+        const string LitMatPath = "Assets/Resources/EduQuest/Materials/LabLit.mat";
+
+        [MenuItem("EduQuest/Editor Test/Build Editor Test Scene", priority = 10)]
+        public static void Build()
+        {
+            BakeLitMaterial();
+            LabGlassPrefabBaker.BakeQuiet();
+
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+            var camGo = new GameObject("Main Camera");
+            camGo.tag = "MainCamera";
+            var cam = camGo.AddComponent<Camera>();
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.14f, 0.16f, 0.18f);
+            camGo.transform.position = new Vector3(0f, 1.45f, -1.65f);
+            camGo.transform.rotation = Quaternion.Euler(30f, 0f, 0f);
+            camGo.AddComponent<AudioListener>();
+
+            var sun = new GameObject("Sun");
+            var dir = sun.AddComponent<Light>();
+            dir.type = LightType.Directional;
+            dir.intensity = 1.15f;
+            dir.shadows = LightShadows.Soft;
+            sun.transform.rotation = Quaternion.Euler(42f, -25f, 0f);
+
+            var fill = new GameObject("Fill");
+            var fillL = fill.AddComponent<Light>();
+            fillL.type = LightType.Directional;
+            fillL.intensity = 0.35f;
+            fillL.color = new Color(0.75f, 0.85f, 1f);
+            fill.transform.rotation = Quaternion.Euler(20f, 140f, 0f);
+
+            EnsureEventSystem();
+
+            var room = new GameObject("EditorRoom");
+
+            var floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            floor.name = "Floor";
+            floor.transform.SetParent(room.transform, false);
+            floor.transform.position = new Vector3(0f, -0.08f, 0.4f);
+            floor.transform.localScale = new Vector3(5f, 0.02f, 5f);
+            floor.GetComponent<Renderer>().sharedMaterial =
+                LabMaterials.Solid(new Color(0.5f, 0.5f, 0.52f), 0.1f);
+
+            var table = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            table.name = "LabTable";
+            table.transform.SetParent(room.transform, false);
+            table.transform.position = new Vector3(0f, -0.02f, 0.4f);
+            table.transform.localScale = new Vector3(1.8f, 0.08f, 1.1f);
+            table.GetComponent<Renderer>().sharedMaterial =
+                LabMaterials.Solid(new Color(0.4f, 0.28f, 0.18f), 0.3f);
+
+            var spawnPos = new Vector3(0f, 0.03f, 0.4f);
+
+            // Place kit in the scene NOW (edit mode) — select & edit in Hierarchy
+            var kit = LabFactory.CreateLabKit(room.transform, spawnPos, Quaternion.identity);
+            kit.name = "LabKit";
+            Selection.activeGameObject = kit;
+
+            // Light guide only (optional). No scan flow.
+            var canvasGo = new GameObject("Canvas", typeof(RectTransform));
+            var canvas = canvasGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            var scaler = canvasGo.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1080, 1920);
+            canvasGo.AddComponent<GraphicRaycaster>();
+            var hud = GuideHud.Create(canvasGo.transform);
+            hud.Show(
+                "Editor",
+                "Edit the glassware",
+                "Select pieces under LabKit in the Hierarchy.\nMove / rotate / scale in the Scene view.",
+                "Assets are on the table — no scanning.");
+
+            var appGo = new GameObject("EditorLabApp");
+            var app = appGo.AddComponent<EditorLabApp>();
+            app.Configure(hud, null);
+
+            Directory.CreateDirectory("Assets/Scenes");
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            AssetDatabase.Refresh();
+
+            EditorUtility.DisplayDialog(
+                "Editor Workspace Ready",
+                "Created:\n" + ScenePath +
+                "\n\nLabKit is already in the scene.\nSelect pieces in the Hierarchy to edit them.\n\nPhone AR stays in EduQuest → Build Clean AR Lab.",
+                "OK");
+        }
+
+        [MenuItem("EduQuest/Editor Test/Open & Play Ready", priority = 11)]
+        public static void Open()
+        {
+            if (!File.Exists(ScenePath))
+                Build();
+            else
+                EditorSceneManager.OpenScene(ScenePath);
+
+            var kit = GameObject.Find("LabKit");
+            if (kit != null)
+                Selection.activeGameObject = kit;
+
+            EditorUtility.DisplayDialog(
+                "Editor Workspace",
+                "Scene open: EduQuestLab_EditorTest\n\nLabKit is in the Hierarchy — edit assets there.\nPlay is optional.",
+                "OK");
+        }
+
+        static void BakeLitMaterial()
+        {
+            Directory.CreateDirectory("Assets/Resources/EduQuest/Materials");
+            var src = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/MobileARTemplateAssets/Materials/ObjectMaterial.mat");
+            if (src == null)
+            {
+                src = AssetDatabase.LoadAssetAtPath<Material>(
+                    "Assets/Samples/XR Interaction Toolkit/3.3.0/Starter Assets/DemoSceneAssets/Materials/Lit White.mat");
+            }
+
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(LitMatPath);
+            if (mat == null)
+            {
+                mat = src != null
+                    ? new Material(src)
+                    : new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                AssetDatabase.CreateAsset(mat, LitMatPath);
+            }
+            else if (src != null)
+            {
+                mat.shader = src.shader;
+            }
+
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", new Color(0.85f, 0.9f, 0.95f, 1f));
+            EditorUtility.SetDirty(mat);
+            AssetDatabase.SaveAssets();
+        }
+
+        static void EnsureEventSystem()
+        {
+            if (Object.FindAnyObjectByType<EventSystem>() != null) return;
+            var es = new GameObject("EventSystem");
+            es.AddComponent<EventSystem>();
+            es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+        }
+    }
+}
+#endif
