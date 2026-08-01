@@ -7,21 +7,21 @@ using UnityEngine.InputSystem;
 namespace EduQuest
 {
     /// <summary>
-    /// Simple living-room-floor combat: tap enemies to defeat them.
-    /// Higher levels = more HP; from level 2 they damage the player.
-    /// Arena stays empty during hunt phases (caller despawns).
+    /// Living-room-floor combat using Quaternius enemy meshes.
+    /// Level 1: Frog/Rat (no attack). Level 2: Spider/Snake/Wasp (attack player).
     /// </summary>
     public class CombatWave : MonoBehaviour
     {
         public event Action WaveCleared;
         public event Action PlayerDefeated;
 
-        readonly List<EnemyDummy> m_Enemies = new();
+        readonly List<EnemyActor> m_Enemies = new();
         Camera m_Cam;
         int m_Level = 1;
         float m_PlayerHp = 100f;
         float m_AttackTimer;
         bool m_Active;
+        bool m_ClearedFired;
 
         public bool IsActive => m_Active;
         public float PlayerHp => m_PlayerHp;
@@ -45,15 +45,16 @@ namespace EduQuest
             m_PlayerHp = 100f;
             m_AttackTimer = 0f;
             m_Active = true;
+            m_ClearedFired = false;
 
             int count = m_Level == 1 ? 2 : 3;
             float hp = m_Level == 1 ? 2f : 4f;
 
             for (int i = 0; i < count; i++)
             {
-                float angle = (i / (float)count) * Mathf.PI * 2f;
-                var pos = groundCenter + new Vector3(Mathf.Cos(angle) * 0.35f, 0.12f, Mathf.Sin(angle) * 0.25f);
-                m_Enemies.Add(EnemyDummy.Spawn(transform, pos, hp, m_Level));
+                float angle = (i / (float)count) * Mathf.PI * 2f + 0.4f;
+                var pos = groundCenter + new Vector3(Mathf.Cos(angle) * 0.38f, 0f, Mathf.Sin(angle) * 0.28f);
+                m_Enemies.Add(EnemyActor.Spawn(transform, pos, hp, m_Level));
             }
         }
 
@@ -73,7 +74,6 @@ namespace EduQuest
 
             HandleTap();
 
-            // Level 2+: enemies attack the player on a timer
             if (m_Level >= 2 && EnemiesAlive > 0)
             {
                 m_AttackTimer += Time.deltaTime;
@@ -90,8 +90,9 @@ namespace EduQuest
                 }
             }
 
-            if (m_Active && EnemiesAlive == 0 && m_Enemies.Count > 0)
+            if (!m_ClearedFired && m_Enemies.Count > 0 && EnemiesAlive == 0)
             {
+                m_ClearedFired = true;
                 m_Active = false;
                 WaveCleared?.Invoke();
             }
@@ -108,62 +109,9 @@ namespace EduQuest
             var ray = m_Cam.ScreenPointToRay(mouse.position.ReadValue());
             if (!Physics.Raycast(ray, out var hit, 40f)) return;
 
-            var enemy = hit.collider.GetComponentInParent<EnemyDummy>();
+            var enemy = hit.collider.GetComponentInParent<EnemyActor>();
             if (enemy == null || !enemy.Alive) return;
-
             enemy.TakeHit(1f);
-        }
-
-        class EnemyDummy : MonoBehaviour
-        {
-            public bool Alive = true;
-            float m_Hp;
-            int m_Level;
-            Renderer m_Renderer;
-
-            public static EnemyDummy Spawn(Transform parent, Vector3 worldPos, float hp, int level)
-            {
-                var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                go.name = level >= 2 ? "Enemy_Aggressive" : "Enemy_Training";
-                go.transform.SetParent(parent, true);
-                go.transform.position = worldPos;
-                go.transform.localScale = new Vector3(0.14f, 0.14f, 0.14f);
-
-                var e = go.AddComponent<EnemyDummy>();
-                e.m_Hp = hp;
-                e.m_Level = level;
-                e.m_Renderer = go.GetComponent<Renderer>();
-                e.ApplyColor();
-
-                var light = go.AddComponent<Light>();
-                light.type = LightType.Point;
-                light.range = 0.5f;
-                light.intensity = 1.2f;
-                light.color = level >= 2 ? new Color(1f, 0.35f, 0.25f) : new Color(0.4f, 0.8f, 1f);
-                return e;
-            }
-
-            public void TakeHit(float dmg)
-            {
-                if (!Alive) return;
-                m_Hp -= dmg;
-                transform.localScale *= 0.92f;
-                if (m_Hp <= 0f)
-                {
-                    Alive = false;
-                    gameObject.SetActive(false);
-                }
-                else ApplyColor();
-            }
-
-            void ApplyColor()
-            {
-                if (m_Renderer == null) return;
-                var c = m_Level >= 2
-                    ? Color.Lerp(new Color(1f, 0.2f, 0.15f), new Color(1f, 0.7f, 0.2f), m_Hp / 4f)
-                    : Color.Lerp(new Color(0.2f, 0.4f, 0.9f), new Color(0.5f, 0.9f, 1f), m_Hp / 2f);
-                m_Renderer.sharedMaterial = LabMaterials.Solid(c, 0.4f);
-            }
         }
     }
 }

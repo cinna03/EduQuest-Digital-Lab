@@ -54,11 +54,11 @@ namespace EduQuest
 
             hud.m_WinBtn = MakeBtn(go.transform, "WIN WAVE", () => hud.WinCombatClicked?.Invoke(),
                 new Vector2(0.08f, 0.03f), new Vector2(0.36f, 0.12f), new Color(0.15f, 0.35f, 0.2f));
-            hud.m_FoundBtn = MakeBtn(go.transform, "FOUND PROP", () => hud.FoundPropClicked?.Invoke(),
+            hud.m_FoundBtn = MakeBtn(go.transform, "SOLVED RIDDLE", () => hud.FoundPropClicked?.Invoke(),
                 new Vector2(0.38f, 0.03f), new Vector2(0.66f, 0.12f), new Color(0.2f, 0.3f, 0.45f));
-            hud.m_LightBtn = MakeBtn(go.transform, "LIGHT OK", () => hud.LightGateClicked?.Invoke(),
+            hud.m_LightBtn = MakeBtn(go.transform, "SOLVED RIDDLE", () => hud.LightGateClicked?.Invoke(),
                 new Vector2(0.38f, 0.03f), new Vector2(0.66f, 0.12f), new Color(0.45f, 0.35f, 0.1f));
-            hud.m_LabBtn = MakeBtn(go.transform, "ENTER LAB", () => hud.StartLabClicked?.Invoke(),
+            hud.m_LabBtn = MakeBtn(go.transform, "CONFIRM", () => hud.StartLabClicked?.Invoke(),
                 new Vector2(0.68f, 0.03f), new Vector2(0.92f, 0.12f), new Color(0.25f, 0.2f, 0.45f));
 
             MakeBtn(go.transform, "RESET RUN", () => hud.ResetCampaignClicked?.Invoke(),
