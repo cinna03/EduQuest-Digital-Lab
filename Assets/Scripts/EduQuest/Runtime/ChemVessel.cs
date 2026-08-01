@@ -4,26 +4,24 @@ namespace EduQuest
 {
     /// <summary>
     /// Interactive glassware: hover label, select (glow + levitate), liquid, pour.
+    /// Selection does NOT recolor the glass — only light + lift.
     /// </summary>
     public class ChemVessel : MonoBehaviour
     {
         public ChemRole Role = ChemRole.None;
         public string DisplayName = "";
 
-        [SerializeField] float levitateHeight = 0.08f;
+        [SerializeField] float levitateHeight = 0.07f;
         [SerializeField] float moveSpeed = 8f;
 
         Vector3 m_RestLocalPos;
-        Quaternion m_RestLocalRot;
+        Quaternion m_RestLocalRot = Quaternion.identity;
         bool m_RestCached;
         bool m_Selected;
         bool m_Hover;
         bool m_PourLocked;
         BottleLabel m_Label;
         Light m_SelectGlow;
-        Renderer[] m_Renderers;
-        Color[] m_BaseColors;
-        bool m_ColorsCached;
         LiquidVolume m_Liquid;
         Color m_DefaultLiquidColor;
         float m_DefaultFill;
@@ -46,14 +44,10 @@ namespace EduQuest
             EnsureLabel();
             EnsureGlow();
             EnsureLiquid();
+            ForceGlassMaterials();
             CacheRest();
             SetLabelVisible(false);
             SetSelected(false, instant: true);
-        }
-
-        void Awake()
-        {
-            m_Renderers = GetComponentsInChildren<Renderer>(true);
         }
 
         void LateUpdate()
@@ -69,7 +63,7 @@ namespace EduQuest
             {
                 m_SelectGlow.enabled = m_Selected;
                 if (m_Selected)
-                    m_SelectGlow.intensity = 1.6f + Mathf.Sin(Time.time * 6f) * 0.35f;
+                    m_SelectGlow.intensity = 1.8f + Mathf.Sin(Time.time * 7f) * 0.4f;
             }
 
             SetLabelVisible(m_Hover || m_Selected);
@@ -84,13 +78,11 @@ namespace EduQuest
         public void EndPourLock()
         {
             m_PourLocked = false;
-            // Snap back to rest basis after animation
             if (m_RestCached)
             {
                 transform.localPosition = m_RestLocalPos + (m_Selected ? Vector3.up * levitateHeight : Vector3.zero);
                 transform.localRotation = m_RestLocalRot;
             }
-            ApplySelectTint(m_Selected);
         }
 
         public void SetHover(bool hover) => m_Hover = hover;
@@ -108,8 +100,6 @@ namespace EduQuest
 
             if (m_SelectGlow != null)
                 m_SelectGlow.enabled = selected && !m_PourLocked;
-
-            ApplySelectTint(selected);
         }
 
         public void ResetVisual()
@@ -120,7 +110,6 @@ namespace EduQuest
             SetLabelVisible(false);
             if (m_Liquid != null)
                 m_Liquid.SetLiquid(m_DefaultLiquidColor, m_DefaultFill, instant: true);
-            ApplySelectTint(false);
         }
 
         public void ShowContamination(Color tint)
@@ -133,37 +122,42 @@ namespace EduQuest
 
         void EnsureLiquid()
         {
-            DefaultLiquidForRole(Role, out m_DefaultLiquidColor, out m_DefaultFill, out var h, out var rad);
-            m_Liquid = LiquidVolume.Ensure(transform, m_DefaultLiquidColor, m_DefaultFill, h, rad);
+            DefaultLiquidForRole(Role, out m_DefaultLiquidColor, out m_DefaultFill);
+
+            m_Liquid = GetComponent<LiquidVolume>();
+            if (m_Liquid != null)
+            {
+                // Keep builder dimensions; only set color/fill
+                m_Liquid.SetLiquid(m_DefaultLiquidColor, m_DefaultFill, instant: true);
+                return;
+            }
+
+            m_Liquid = LiquidVolume.Ensure(transform, m_DefaultLiquidColor, m_DefaultFill, 0.14f, 0.04f);
         }
 
-        static void DefaultLiquidForRole(ChemRole role, out Color color, out float fill, out float height, out float radius)
+        static void DefaultLiquidForRole(ChemRole role, out Color color, out float fill)
         {
-            height = 0.11f;
-            radius = 0.07f;
             switch (role)
             {
                 case ChemRole.SilverNitrate:
-                    color = new Color(0.95f, 0.95f, 0.88f);
-                    fill = 0.88f;
+                    color = new Color(0.93f, 0.94f, 0.9f); // near-clear
+                    fill = 0.75f;
                     break;
                 case ChemRole.SodiumChloride:
-                    color = new Color(0.72f, 0.9f, 1f);
-                    fill = 0.88f;
+                    color = new Color(0.55f, 0.82f, 1f);
+                    fill = 0.75f;
                     break;
                 case ChemRole.Fixer:
-                    color = new Color(1f, 0.68f, 0.12f);
-                    fill = 0.88f;
+                    color = new Color(1f, 0.72f, 0.15f);
+                    fill = 0.75f;
                     break;
                 case ChemRole.Distractor:
-                    color = new Color(0.12f, 0.4f, 1f);
-                    fill = 0.88f;
+                    color = new Color(0.15f, 0.4f, 0.95f);
+                    fill = 0.75f;
                     break;
                 case ChemRole.ReactionBeaker:
                     color = new Color(0.75f, 0.88f, 0.95f);
-                    fill = 0f; // starts empty
-                    height = 0.13f;
-                    radius = 0.09f;
+                    fill = 0f;
                     break;
                 default:
                     color = new Color(0.7f, 0.85f, 1f);
@@ -172,13 +166,26 @@ namespace EduQuest
             }
         }
 
+        void ForceGlassMaterials()
+        {
+            foreach (var r in GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null) continue;
+                if (r.gameObject.name is "Substance" or "MixLiquid") continue;
+                if (r.gameObject.name == "GlassRim" || r.gameObject.name == "GlassBase")
+                    r.sharedMaterial = LabMaterials.GlassRim();
+                else
+                    r.sharedMaterial = LabMaterials.GlassShell();
+            }
+        }
+
         void EnsureCollider()
         {
             var col = GetComponent<Collider>();
             if (col != null) return;
             var box = gameObject.AddComponent<BoxCollider>();
-            box.size = new Vector3(0.22f, 0.38f, 0.22f);
-            box.center = new Vector3(0f, 0.16f, 0f);
+            box.size = new Vector3(0.14f, 0.24f, 0.14f);
+            box.center = new Vector3(0f, 0.12f, 0f);
         }
 
         void EnsureLabel()
@@ -202,12 +209,12 @@ namespace EduQuest
 
             var go = new GameObject("SelectGlow");
             go.transform.SetParent(transform, false);
-            go.transform.localPosition = new Vector3(0f, 0.2f, 0f);
+            go.transform.localPosition = new Vector3(0f, 0.18f, 0f);
             m_SelectGlow = go.AddComponent<Light>();
             m_SelectGlow.type = LightType.Point;
-            m_SelectGlow.range = 0.55f;
-            m_SelectGlow.color = new Color(1f, 0.95f, 0.55f);
-            m_SelectGlow.intensity = 1.8f;
+            m_SelectGlow.range = 0.45f;
+            m_SelectGlow.color = new Color(1f, 0.95f, 0.6f);
+            m_SelectGlow.intensity = 2f;
             m_SelectGlow.enabled = false;
         }
 
@@ -232,41 +239,6 @@ namespace EduQuest
         {
             if (m_Label == null) return;
             m_Label.gameObject.SetActive(on);
-        }
-
-        void ApplySelectTint(bool selected)
-        {
-            if (m_Renderers == null || m_Renderers.Length == 0)
-                m_Renderers = GetComponentsInChildren<Renderer>(true);
-
-            if (!m_ColorsCached)
-            {
-                m_BaseColors = new Color[m_Renderers.Length];
-                for (var i = 0; i < m_Renderers.Length; i++)
-                {
-                    var mat = m_Renderers[i] != null ? m_Renderers[i].material : null;
-                    if (mat != null && mat.HasProperty("_BaseColor"))
-                        m_BaseColors[i] = mat.GetColor("_BaseColor");
-                    else if (mat != null && mat.HasProperty("_Color"))
-                        m_BaseColors[i] = mat.GetColor("_Color");
-                    else
-                        m_BaseColors[i] = Color.white;
-                }
-                m_ColorsCached = true;
-            }
-
-            for (var i = 0; i < m_Renderers.Length; i++)
-            {
-                var r = m_Renderers[i];
-                if (r == null) continue;
-                if (r.gameObject.name is "Substance" or "MixLiquid") continue;
-                var mat = r.material;
-                var c = selected
-                    ? Color.Lerp(m_BaseColors[i], new Color(1f, 0.92f, 0.4f), 0.45f)
-                    : m_BaseColors[i];
-                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
-                else if (mat.HasProperty("_Color")) mat.SetColor("_Color", c);
-            }
         }
 
         static Color LabelColor(ChemRole role) => role switch

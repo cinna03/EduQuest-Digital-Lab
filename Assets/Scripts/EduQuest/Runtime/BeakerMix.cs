@@ -26,12 +26,15 @@ namespace EduQuest
         public void Bind(Renderer liquid, Light glowLight)
         {
             glow = glowLight;
-            m_Liquid = LiquidVolume.Ensure(transform, new Color(0.75f, 0.88f, 0.95f), 0f, 0.13f, 0.09f);
-            // Keep legacy renderer reference in sync with LiquidVolume mesh
+            // Prefer the inset LiquidVolume already sized by GlassBeakerBuilder —
+            // never overwrite radius/height (that made fill look like an outer sleeve).
+            m_Liquid = GetComponent<LiquidVolume>();
+            if (m_Liquid == null)
+                m_Liquid = LiquidVolume.Ensure(transform, new Color(0.75f, 0.88f, 0.95f), 0f, 0.16f, 0.04f);
+
             if (liquid != null && m_Liquid.Surface != null && liquid.transform != m_Liquid.Surface)
             {
-                // hide duplicate mix liquid if any
-                if (liquid.gameObject.name == "MixLiquid" && liquid.transform != m_Liquid.Surface)
+                if (liquid.gameObject.name == "MixLiquid")
                     liquid.enabled = false;
             }
             SetLook(Look.Empty);
@@ -41,7 +44,11 @@ namespace EduQuest
         {
             m_Look = look;
             if (m_Liquid == null)
-                m_Liquid = GetComponent<LiquidVolume>() ?? LiquidVolume.Ensure(transform, Color.white, 0f, 0.13f, 0.09f);
+            {
+                m_Liquid = GetComponent<LiquidVolume>();
+                if (m_Liquid == null)
+                    m_Liquid = LiquidVolume.Ensure(transform, Color.white, 0f, 0.16f, 0.04f);
+            }
 
             Color c;
             float fill = 0.55f;

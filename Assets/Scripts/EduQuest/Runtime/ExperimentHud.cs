@@ -28,34 +28,35 @@ namespace EduQuest
 
             var hud = go.AddComponent<ExperimentHud>();
 
+            // Compact top card — leave the table readable
             var topBg = Panel(go.transform, "TopPanel",
-                new Vector2(0.04f, 0.74f), new Vector2(0.96f, 0.98f),
-                new Color(0.05f, 0.07f, 0.1f, 0.85f));
+                new Vector2(0.08f, 0.82f), new Vector2(0.92f, 0.97f),
+                new Color(0.04f, 0.06f, 0.09f, 0.72f));
 
-            hud.m_Step = Label(topBg.transform, "Step", 18,
-                new Vector2(0.04f, 0.72f), new Vector2(0.96f, 0.95f),
+            hud.m_Step = Label(topBg.transform, "Step", 15,
+                new Vector2(0.04f, 0.68f), new Vector2(0.96f, 0.95f),
                 new Color(0.65f, 0.9f, 1f), FontStyle.Normal);
-            hud.m_Title = Label(topBg.transform, "Title", 28,
-                new Vector2(0.04f, 0.38f), new Vector2(0.96f, 0.78f),
+            hud.m_Title = Label(topBg.transform, "Title", 24,
+                new Vector2(0.04f, 0.28f), new Vector2(0.96f, 0.72f),
                 Color.white, FontStyle.Bold);
-            hud.m_Body = Label(topBg.transform, "Body", 17,
-                new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.42f),
-                new Color(0.92f, 0.95f, 1f), FontStyle.Normal);
+            hud.m_Body = Label(topBg.transform, "Body", 14,
+                new Vector2(0.04f, 0.02f), new Vector2(0.96f, 0.32f),
+                new Color(0.9f, 0.94f, 1f), FontStyle.Normal);
 
             var mid = Panel(go.transform, "ActionBanner",
-                new Vector2(0.06f, 0.58f), new Vector2(0.94f, 0.72f),
-                new Color(0.1f, 0.12f, 0.16f, 0.88f));
+                new Vector2(0.12f, 0.72f), new Vector2(0.88f, 0.80f),
+                new Color(0.08f, 0.1f, 0.14f, 0.75f));
             hud.m_Banner = mid.GetComponent<Image>();
-            hud.m_Action = Label(mid.transform, "Action", 20,
+            hud.m_Action = Label(mid.transform, "Action", 17,
                 new Vector2(0.04f, 0.1f), new Vector2(0.96f, 0.9f),
                 new Color(1f, 0.92f, 0.45f), FontStyle.Bold);
 
-            hud.m_Selected = Label(go.transform, "Selected", 18,
-                new Vector2(0.06f, 0.52f), new Vector2(0.94f, 0.58f),
+            hud.m_Selected = Label(go.transform, "Selected", 15,
+                new Vector2(0.12f, 0.66f), new Vector2(0.88f, 0.71f),
                 new Color(1f, 0.85f, 0.45f), FontStyle.Bold);
 
-            hud.m_Beaker = Label(go.transform, "BeakerState", 17,
-                new Vector2(0.06f, 0.46f), new Vector2(0.94f, 0.52f),
+            hud.m_Beaker = Label(go.transform, "BeakerState", 15,
+                new Vector2(0.12f, 0.61f), new Vector2(0.88f, 0.66f),
                 new Color(0.8f, 0.95f, 0.85f), FontStyle.Normal);
 
             float cy0 = 0.03f, cy1 = 0.12f;

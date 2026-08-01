@@ -1,8 +1,9 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace EduQuest
 {
-    /// <summary>Phone-safe opaque URP materials (never magenta).</summary>
+    /// <summary>Phone-safe URP materials — transparent glass + solid inset liquids.</summary>
     public static class LabMaterials
     {
         static Material s_Lit;
@@ -38,20 +39,78 @@ namespace EduQuest
         {
             var mat = new Material(LitTemplate());
             color.a = 1f;
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
-            if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+            ApplyColor(mat, color);
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
             if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.05f);
-            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 0f);
+            SetOpaque(mat);
             return mat;
         }
 
-        /// <summary>Phone-safe polished glass tint (opaque — avoids magenta transparent bugs).</summary>
+        /// <summary>See-through glass so the inset liquid reads as inside the beaker.</summary>
+        public static Material GlassShell()
+        {
+            var mat = new Material(LitTemplate());
+            var color = new Color(0.78f, 0.9f, 0.96f, 0.22f);
+            ApplyColor(mat, color);
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.95f);
+            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.05f);
+            SetTransparent(mat);
+            return mat;
+        }
+
+        public static Material GlassRim()
+        {
+            var mat = new Material(LitTemplate());
+            // Slightly denser rim/base so the beaker silhouette stays readable
+            var color = new Color(0.72f, 0.86f, 0.94f, 0.55f);
+            ApplyColor(mat, color);
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.9f);
+            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.08f);
+            SetTransparent(mat);
+            return mat;
+        }
+
+        /// <summary>Opaque liquid body — must stay solid so fill level is obvious.</summary>
+        public static Material Liquid(Color color)
+        {
+            var c = color;
+            c.a = 1f;
+            return Solid(c, 0.5f);
+        }
+
         public static Material Glass()
         {
             var baked = Resources.Load<Material>("EduQuest/Materials/LabGlass");
             if (baked != null) return baked;
-            return Solid(new Color(0.78f, 0.9f, 0.96f), 0.92f);
+            return GlassShell();
+        }
+
+        static void ApplyColor(Material mat, Color color)
+        {
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+        }
+
+        static void SetOpaque(Material mat)
+        {
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 0f);
+            if (mat.HasProperty("_ZWrite")) mat.SetFloat("_ZWrite", 1f);
+            mat.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.SetOverrideTag("RenderType", "Opaque");
+            mat.renderQueue = (int)RenderQueue.Geometry;
+        }
+
+        static void SetTransparent(Material mat)
+        {
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);
+            if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0f); // Alpha
+            if (mat.HasProperty("_SrcBlend")) mat.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            if (mat.HasProperty("_DstBlend")) mat.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            if (mat.HasProperty("_ZWrite")) mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.renderQueue = (int)RenderQueue.Transparent;
         }
     }
 }

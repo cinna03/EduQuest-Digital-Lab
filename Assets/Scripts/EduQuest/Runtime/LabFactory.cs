@@ -45,34 +45,19 @@ namespace EduQuest
         /// </summary>
         static void BuildClearExperimentLayout(Transform root)
         {
-            // Back row — props, spaced, smaller (atmosphere only)
-            PlaceProp("Erlenmeyer", root, new Vector3(-0.55f, 0f, 0.42f), 0.75f, Water, 0.08f);
-            PlaceProp("Florence", root, new Vector3(-0.18f, 0f, 0.45f), 0.7f, Water, 0.1f);
-            PlaceProp("GraduatedCylinder", root, new Vector3(0.18f, 0f, 0.45f), 0.75f, Water, 0.07f);
-            PlaceProp("RoundBottom", root, new Vector3(0.55f, 0f, 0.42f), 0.7f, Water, 0.08f);
+            // Clean table: 4 reagent beakers + MIX. Clear glass + inset liquids.
+            GlassBeakerBuilder.Create(root, new Vector3(-0.48f, 0f, 0.16f), "Bottle_A",
+                ChemRole.SilverNitrate, "A · AgNO₃", AgNO3, 0.75f, 0.2f, 0.048f);
+            GlassBeakerBuilder.Create(root, new Vector3(-0.16f, 0f, 0.16f), "Bottle_B",
+                ChemRole.SodiumChloride, "B · NaCl", NaCl, 0.75f, 0.2f, 0.048f);
+            GlassBeakerBuilder.Create(root, new Vector3(0.16f, 0f, 0.16f), "Bottle_C",
+                ChemRole.Fixer, "C · Fixer", Fixer, 0.75f, 0.2f, 0.048f);
+            GlassBeakerBuilder.Create(root, new Vector3(0.48f, 0f, 0.16f), "Bottle_D",
+                ChemRole.Distractor, "D · CuSO₄", CuSO4, 0.75f, 0.2f, 0.048f);
 
-            // Mid row — reagents, wide gaps so labels never overlap (~0.38m apart)
-            PlaceReagent(root, new Vector3(-0.57f, 0f, 0.18f), AgNO3,
-                ChemRole.SilverNitrate, "A\nAgNO₃", "Bottle_A", Color.white);
-            PlaceReagent(root, new Vector3(-0.19f, 0f, 0.18f), NaCl,
-                ChemRole.SodiumChloride, "B\nNaCl", "Bottle_B", new Color(0.7f, 0.9f, 1f));
-            PlaceReagent(root, new Vector3(0.19f, 0f, 0.18f), Fixer,
-                ChemRole.Fixer, "C\nFixer", "Bottle_C", new Color(1f, 0.85f, 0.2f));
-            PlaceReagent(root, new Vector3(0.57f, 0f, 0.18f), CuSO4,
-                ChemRole.Distractor, "D\nCuSO₄\nWRONG", "Bottle_D", new Color(0.45f, 0.75f, 1f));
-
-            // Front center — reaction beaker
-            var reaction = PlaceProp("Beaker", root, new Vector3(0f, 0f, -0.08f), 1.15f, null, 0f);
-            if (reaction == null)
-            {
-                CreatePrimitiveBeaker(root, new Vector3(0f, 0f, -0.08f));
-                reaction = root.Find("Beaker")?.gameObject;
-            }
-            if (reaction != null)
-            {
-                reaction.name = "ReactionBeaker";
-                MakeClickable(reaction, ChemRole.ReactionBeaker, "MIX beaker");
-            }
+            // Larger MIX beaker in front
+            GlassBeakerBuilder.Create(root, new Vector3(0f, 0f, -0.12f), "ReactionBeaker",
+                ChemRole.ReactionBeaker, "MIX beaker", Water, 0f, 0.26f, 0.07f);
         }
 
         static void BuildDisplayLayout(Transform root)
