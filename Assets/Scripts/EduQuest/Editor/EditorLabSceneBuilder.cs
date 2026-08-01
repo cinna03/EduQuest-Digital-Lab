@@ -9,8 +9,7 @@ using UnityEngine.UI;
 namespace EduQuest.EditorTools
 {
     /// <summary>
-    /// Desktop workspace scene: lab glassware is placed in-edit so you can
-    /// select and tweak assets without Play Mode or a fake scan.
+    /// Desktop workspace: glassware + editor crystal experiment (no AR).
     /// </summary>
     public static class EditorLabSceneBuilder
     {
@@ -37,14 +36,14 @@ namespace EduQuest.EditorTools
             var sun = new GameObject("Sun");
             var dir = sun.AddComponent<Light>();
             dir.type = LightType.Directional;
-            dir.intensity = 1.15f;
+            dir.intensity = 0.12f; // start dark for experiment
             dir.shadows = LightShadows.Soft;
             sun.transform.rotation = Quaternion.Euler(42f, -25f, 0f);
 
             var fill = new GameObject("Fill");
             var fillL = fill.AddComponent<Light>();
             fillL.type = LightType.Directional;
-            fillL.intensity = 0.35f;
+            fillL.intensity = 0.05f;
             fillL.color = new Color(0.75f, 0.85f, 1f);
             fill.transform.rotation = Quaternion.Euler(20f, 140f, 0f);
 
@@ -70,12 +69,11 @@ namespace EduQuest.EditorTools
 
             var spawnPos = new Vector3(0f, 0.03f, 0.4f);
 
-            // Place kit in the scene NOW (edit mode) — select & edit in Hierarchy
-            var kit = LabFactory.CreateLabKit(room.transform, spawnPos, Quaternion.identity);
+            // Experiment kit: clickable A/B/C/D + reaction beaker
+            var kit = LabFactory.CreateLabKit(room.transform, spawnPos, Quaternion.identity, forExperiment: true);
             kit.name = "LabKit";
             Selection.activeGameObject = kit;
 
-            // Light guide only (optional). No scan flow.
             var canvasGo = new GameObject("Canvas", typeof(RectTransform));
             var canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -84,15 +82,11 @@ namespace EduQuest.EditorTools
             scaler.referenceResolution = new Vector2(1080, 1920);
             canvasGo.AddComponent<GraphicRaycaster>();
             var hud = GuideHud.Create(canvasGo.transform);
-            hud.Show(
-                "Editor",
-                "Edit the glassware",
-                "Select pieces under LabKit in the Hierarchy.\nMove / rotate / scale in the Scene view.",
-                "Assets are on the table — no scanning.");
 
             var appGo = new GameObject("EditorLabApp");
             var app = appGo.AddComponent<EditorLabApp>();
-            app.Configure(hud, null);
+            appGo.AddComponent<EditorCrystalExperiment>();
+            app.Configure(hud, kit.transform, dir, fillL, cam);
 
             Directory.CreateDirectory("Assets/Scenes");
             EditorSceneManager.MarkSceneDirty(scene);
@@ -100,9 +94,9 @@ namespace EduQuest.EditorTools
             AssetDatabase.Refresh();
 
             EditorUtility.DisplayDialog(
-                "Editor Workspace Ready",
+                "Editor Experiment Ready",
                 "Created:\n" + ScenePath +
-                "\n\nLabKit is already in the scene.\nSelect pieces in the Hierarchy to edit them.\n\nPhone AR stays in EduQuest → Build Clean AR Lab.",
+                "\n\nPress Play.\nClick bottles A → B → wait → C → press L.\nD = dark · R = reset.\n\nNo AR yet.",
                 "OK");
         }
 
@@ -119,8 +113,8 @@ namespace EduQuest.EditorTools
                 Selection.activeGameObject = kit;
 
             EditorUtility.DisplayDialog(
-                "Editor Workspace",
-                "Scene open: EduQuestLab_EditorTest\n\nLabKit is in the Hierarchy — edit assets there.\nPlay is optional.",
+                "Editor Experiment",
+                "Scene: EduQuestLab_EditorTest\n\nPress Play ▶\nClick A → B → wait 5s → C → L\nD dark · R reset",
                 "OK");
         }
 

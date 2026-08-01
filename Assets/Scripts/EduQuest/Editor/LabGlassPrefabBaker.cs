@@ -63,6 +63,9 @@ namespace EduQuest.EditorTools
                 instance.transform.localScale = Vector3.one;
 
                 ApplyGlass(instance, glass);
+                // Stand glassware upright (FBX packs are often exported on their side)
+                LabFactory.EnsureUpright(instance);
+                instance.transform.position = Vector3.zero;
                 NormalizeToTable(instance, item.targetHeight);
                 StripColliders(instance);
 
