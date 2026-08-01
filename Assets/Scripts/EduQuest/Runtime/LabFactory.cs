@@ -7,13 +7,12 @@ namespace EduQuest
     /// </summary>
     public static class LabFactory
     {
-        // Distinct chemical fills
-        static readonly Color AgNO3 = new Color(0.95f, 0.95f, 0.88f); // pale straw
-        static readonly Color NaCl = new Color(0.75f, 0.9f, 1f);      // watery blue
-        static readonly Color Fixer = new Color(1f, 0.7f, 0.15f);     // strong amber
-        static readonly Color CuSO4 = new Color(0.1f, 0.35f, 1f);      // vivid blue
-        static readonly Color Water = new Color(0.55f, 0.78f, 0.95f);
-        static readonly Color EmptyTint = new Color(0.78f, 0.9f, 0.96f);
+        static readonly Color AgNO3 = LabChemicals.AgNO3;
+        static readonly Color NaCl = LabChemicals.NaCl;
+        static readonly Color Fixer = LabChemicals.Fixer;
+        static readonly Color CuSO4 = LabChemicals.CuSO4;
+        static readonly Color Water = LabChemicals.ClearMix;
+        static readonly Color EmptyTint = LabChemicals.ClearMix;
 
         public static GameObject CreateLabKit(Transform parent, Vector3 worldPos, Quaternion worldRot)
         {
@@ -45,19 +44,19 @@ namespace EduQuest
         /// </summary>
         static void BuildClearExperimentLayout(Transform root)
         {
-            // Clean table: 4 reagent beakers + MIX. Clear glass + inset liquids.
+            // Clean table: 4 reagent beakers + MIX. Accurate aqueous colors + inset fills.
             GlassBeakerBuilder.Create(root, new Vector3(-0.48f, 0f, 0.16f), "Bottle_A",
-                ChemRole.SilverNitrate, "A · AgNO₃", AgNO3, 0.75f, 0.2f, 0.048f);
+                ChemRole.SilverNitrate, LabChemicals.DisplayName(ChemRole.SilverNitrate), AgNO3, 0.88f, 0.2f, 0.048f);
             GlassBeakerBuilder.Create(root, new Vector3(-0.16f, 0f, 0.16f), "Bottle_B",
-                ChemRole.SodiumChloride, "B · NaCl", NaCl, 0.75f, 0.2f, 0.048f);
+                ChemRole.SodiumChloride, LabChemicals.DisplayName(ChemRole.SodiumChloride), NaCl, 0.88f, 0.2f, 0.048f);
             GlassBeakerBuilder.Create(root, new Vector3(0.16f, 0f, 0.16f), "Bottle_C",
-                ChemRole.Fixer, "C · Fixer", Fixer, 0.75f, 0.2f, 0.048f);
+                ChemRole.Fixer, LabChemicals.DisplayName(ChemRole.Fixer), Fixer, 0.88f, 0.2f, 0.048f);
             GlassBeakerBuilder.Create(root, new Vector3(0.48f, 0f, 0.16f), "Bottle_D",
-                ChemRole.Distractor, "D · CuSO₄", CuSO4, 0.75f, 0.2f, 0.048f);
+                ChemRole.Distractor, LabChemicals.DisplayName(ChemRole.Distractor), CuSO4, 0.88f, 0.2f, 0.048f);
 
-            // Larger MIX beaker in front
+            // Larger MIX beaker in front — starts empty
             GlassBeakerBuilder.Create(root, new Vector3(0f, 0f, -0.12f), "ReactionBeaker",
-                ChemRole.ReactionBeaker, "MIX beaker", Water, 0f, 0.26f, 0.07f);
+                ChemRole.ReactionBeaker, LabChemicals.DisplayName(ChemRole.ReactionBeaker), Water, 0f, 0.26f, 0.07f);
         }
 
         static void BuildDisplayLayout(Transform root)

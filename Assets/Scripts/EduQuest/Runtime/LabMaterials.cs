@@ -70,12 +70,46 @@ namespace EduQuest
             return mat;
         }
 
-        /// <summary>Opaque liquid body — must stay solid so fill level is obvious.</summary>
+        /// <summary>
+        /// Liquid body. Clear aqueous solutions (alpha &lt; ~0.92) stay translucent so they
+        /// read as water-like inside glass; colored reagents stay opaque.
+        /// </summary>
         public static Material Liquid(Color color)
         {
+            var mat = new Material(LitTemplate());
+            bool clear = color.a < 0.92f;
             var c = color;
-            c.a = 1f;
-            return Solid(c, 0.5f);
+            if (clear)
+            {
+                // Keep a readable watery body without looking like plastic paint
+                c.a = Mathf.Clamp(color.a, 0.42f, 0.7f);
+                ApplyColor(mat, c);
+                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.85f);
+                if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.02f);
+                SetTransparent(mat);
+            }
+            else
+            {
+                c.a = 1f;
+                ApplyColor(mat, c);
+                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.55f);
+                if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.05f);
+                SetOpaque(mat);
+            }
+            return mat;
+        }
+
+        /// <summary>Bright surface disc so fill height is obvious even for clear solutions.</summary>
+        public static Material Meniscus(Color liquidColor)
+        {
+            var mat = new Material(LitTemplate());
+            var c = Color.Lerp(liquidColor, Color.white, 0.55f);
+            c.a = 0.85f;
+            ApplyColor(mat, c);
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.95f);
+            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.1f);
+            SetTransparent(mat);
+            return mat;
         }
 
         public static Material Glass()

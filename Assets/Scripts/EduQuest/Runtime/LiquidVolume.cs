@@ -2,11 +2,13 @@ using UnityEngine;
 
 namespace EduQuest
 {
-    /// <summary>Inset liquid cylinder inside a glass vessel.</summary>
+    /// <summary>Inset liquid cylinder + meniscus disc so fill level is always readable.</summary>
     public class LiquidVolume : MonoBehaviour
     {
         [SerializeField] Transform liquid;
+        [SerializeField] Transform meniscus;
         [SerializeField] Renderer liquidRenderer;
+        [SerializeField] Renderer meniscusRenderer;
         [SerializeField] float maxHeight = 0.14f;
         [SerializeField] float radius = 0.04f;
         [SerializeField] float baseY = 0.03f;
@@ -24,8 +26,6 @@ namespace EduQuest
             bool created = lv == null;
             if (created) lv = vessel.gameObject.AddComponent<LiquidVolume>();
 
-            // Only adopt new dimensions when creating, or when caller passes explicit smaller/tighter sizes.
-            // Prevents later Ensure() calls from blowing liquid outside the glass shell.
             if (created || maxHeight < lv.maxHeight)
                 lv.maxHeight = maxHeight;
             if (created || radius < lv.radius)
@@ -40,7 +40,6 @@ namespace EduQuest
 
         public void EnsureMesh()
         {
-            // Always prefer our dedicated liquid child — never hijack glass meshes
             var existing = transform.Find("Substance");
             GameObject go;
             if (existing != null)
@@ -56,13 +55,39 @@ namespace EduQuest
                 if (col != null) Object.DestroyImmediate(col);
             }
 
-            // Hide any old MixLiquid duplicate
             var oldMix = transform.Find("MixLiquid");
             if (oldMix != null) oldMix.gameObject.SetActive(false);
 
             liquid = go.transform;
             liquidRenderer = go.GetComponent<Renderer>();
+            if (liquidRenderer != null)
+                liquidRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            EnsureMeniscus();
             ApplyTransform();
+        }
+
+        void EnsureMeniscus()
+        {
+            var existing = transform.Find("Meniscus");
+            GameObject go;
+            if (existing != null)
+            {
+                go = existing.gameObject;
+            }
+            else
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                go.name = "Meniscus";
+                go.transform.SetParent(transform, false);
+                var col = go.GetComponent<Collider>();
+                if (col != null) Object.DestroyImmediate(col);
+            }
+
+            meniscus = go.transform;
+            meniscusRenderer = go.GetComponent<Renderer>();
+            if (meniscusRenderer != null)
+                meniscusRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
 
         public void SetLiquid(Color color, float fill, bool instant = false)
@@ -71,10 +96,17 @@ namespace EduQuest
             m_Color = color;
             m_Fill = Mathf.Clamp01(fill);
 
+            bool visible = m_Fill > 0.02f;
             if (liquidRenderer != null)
             {
-                liquidRenderer.enabled = m_Fill > 0.02f;
+                liquidRenderer.enabled = visible;
                 liquidRenderer.sharedMaterial = LabMaterials.Liquid(m_Color);
+            }
+
+            if (meniscusRenderer != null)
+            {
+                meniscusRenderer.enabled = visible;
+                meniscusRenderer.sharedMaterial = LabMaterials.Meniscus(m_Color);
             }
 
             ApplyTransform();
@@ -89,16 +121,24 @@ namespace EduQuest
         void ApplyTransform()
         {
             if (liquid == null) return;
-            // Unity cylinder default height = 2, so scale.y = half-extent
-            var h = Mathf.Max(0.008f, maxHeight * Mathf.Max(0.04f, m_Fill));
+
+            // Visible column height tracks fill (empty = hidden via renderer)
+            var h = Mathf.Max(0.01f, maxHeight * Mathf.Max(0.05f, m_Fill));
             liquid.localPosition = new Vector3(0f, baseY + h * 0.5f, 0f);
             liquid.localRotation = Quaternion.identity;
             liquid.localScale = new Vector3(radius * 2f, h * 0.5f, radius * 2f);
+
+            if (meniscus != null)
+            {
+                // Thin bright disc on the liquid surface — makes level changes obvious
+                meniscus.localPosition = new Vector3(0f, baseY + h + 0.0015f, 0f);
+                meniscus.localRotation = Quaternion.identity;
+                meniscus.localScale = new Vector3(radius * 2.05f, 0.0025f, radius * 2.05f);
+            }
         }
 
         public Vector3 GetSpoutWorldPos()
         {
-            // Lip of the glass — use glass body if present
             var body = transform.Find("GlassRim") ?? transform.Find("GlassBody");
             if (body != null)
             {

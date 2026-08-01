@@ -104,7 +104,7 @@ namespace EduQuest
                 if (m_SettleTimer >= SettleSeconds)
                 {
                     m_Settled = true;
-                    m_Beaker?.SetLook(BeakerMix.Look.RawCrystal);
+                    m_Beaker?.SetLook(BeakerMix.Look.RawCrystal, preserveFill: true);
                     m_Action = "Settled. Select Fixer (C), then click the MIX beaker to pour.";
                     RefreshUi();
                 }
@@ -293,7 +293,7 @@ namespace EduQuest
 
             // Wrong pour (bottle→bottle, D→MIX, etc.) — still animate, then spoil
             var reason = src == ChemRole.Distractor && dst == ChemRole.ReactionBeaker
-                ? "Poured CuSO₄ (D) into MIX — contaminated."
+                ? "Poured CuSO4 (D) into MIX — contaminated."
                 : $"Mixed {source.DisplayName} into {target.DisplayName}. Wrong combination — restart.";
 
             m_Action = $"Pouring {source.DisplayName} → {target.DisplayName}…";
@@ -301,47 +301,43 @@ namespace EduQuest
             AnimateThen(source, target, spoil: true, reason, null);
         }
 
-        void PreviewMixAfterPour(ChemRole src, out Color color, out float fill)
+        void PreviewMixAfterPour(ChemRole src, float dstFillAfter, out Color color, out float fill)
         {
-            // Approximate look mid-pour for animation target
+            // Color follows real chemistry; fill is the cumulative transferred volume
+            fill = dstFillAfter;
             if (src == ChemRole.SilverNitrate && m_Cl <= 0f)
-            {
-                color = new Color(0.75f, 0.88f, 0.95f);
-                fill = 0.4f;
-            }
+                color = LabChemicals.AgNO3;
             else if (src == ChemRole.SodiumChloride || (src == ChemRole.SilverNitrate && m_Cl > 0f))
-            {
-                color = new Color(0.96f, 0.96f, 0.98f);
-                fill = 0.62f;
-            }
+                color = LabChemicals.AgClPrecipitate;
             else if (src == ChemRole.Fixer)
-            {
-                color = new Color(0.86f, 0.9f, 0.96f);
-                fill = 0.7f;
-            }
+                color = Color.Lerp(LabChemicals.AgClPrecipitate, LabChemicals.Fixer, 0.35f);
             else
-            {
-                color = new Color(0.3f, 0.5f, 0.22f);
-                fill = 0.6f;
-            }
+                color = new Color(0.25f, 0.45f, 0.28f, 1f);
         }
 
         void AnimateThen(ChemVessel source, ChemVessel target, bool spoil, string spoilReason, System.Action after)
         {
             m_Busy = true;
             var stream = source.PourStreamColor();
-            var srcAfter = Mathf.Max(0.25f, (source.Liquid != null ? source.Liquid.Fill : 0.85f) - 0.28f);
+
+            // Visible volume transfer: source drops, receiver rises by roughly the same amount
+            const float pourAmount = 0.34f;
+            float srcBefore = source.Liquid != null ? source.Liquid.Fill : 0.88f;
+            float dstBefore = target.Liquid != null ? target.Liquid.Fill : 0f;
+            float moved = Mathf.Min(pourAmount, Mathf.Max(0f, srcBefore - 0.06f));
+            float srcAfter = Mathf.Max(0.06f, srcBefore - moved);
+            float dstAfter = Mathf.Clamp01(dstBefore + moved);
 
             Color dstColor;
             float dstFill;
             if (spoil)
             {
-                dstColor = new Color(0.28f, 0.48f, 0.2f);
-                dstFill = Mathf.Clamp01((target.Liquid != null ? target.Liquid.Fill : 0.2f) + 0.35f);
+                dstColor = new Color(0.25f, 0.45f, 0.28f, 1f);
+                dstFill = dstAfter;
             }
             else
             {
-                PreviewMixAfterPour(source.Role, out dstColor, out dstFill);
+                PreviewMixAfterPour(source.Role, dstAfter, out dstColor, out dstFill);
             }
 
             if (m_Pour == null) m_Pour = PourAnimator.Ensure(gameObject);
@@ -351,7 +347,7 @@ namespace EduQuest
                 if (spoil)
                 {
                     if (target.Role == ChemRole.ReactionBeaker)
-                        m_Beaker?.SetLook(BeakerMix.Look.Contaminated);
+                        m_Beaker?.SetLook(BeakerMix.Look.Contaminated, preserveFill: true);
                     else
                         target.ShowContamination(dstColor);
                     Fail(spoilReason);
@@ -378,9 +374,9 @@ namespace EduQuest
                         return;
                     }
                     m_Ag = TargetAg;
-                    m_Beaker?.SetLook(BeakerMix.Look.ClearSolution);
+                    m_Beaker?.SetLook(BeakerMix.Look.ClearSolution, preserveFill: true);
                     m_Action = m_Dark
-                        ? "Poured A (AgNO₃) into MIX. Next: pick B, pour into MIX."
+                        ? "Poured A (AgNO3) into MIX. Next: pick B, pour into MIX."
                         : "Poured A — room is LIGHT. Press DARK, then pour B.";
                     TryFormPrecipitate();
                     break;
@@ -399,7 +395,7 @@ namespace EduQuest
                     }
                     m_Fix = TargetFix;
                     m_Stabilized = true;
-                    m_Beaker?.SetLook(BeakerMix.Look.Stabilized);
+                    m_Beaker?.SetLook(BeakerMix.Look.Stabilized, preserveFill: true);
                     m_Action = "Poured C (Fixer). Stabilized! Press LIGHT to activate.";
                     break;
             }
@@ -410,7 +406,7 @@ namespace EduQuest
             if (m_Precipitate || m_Ag < TargetAg || m_Cl < TargetCl) return;
             m_Precipitate = true;
             m_SettleTimer = 0f;
-            m_Beaker?.SetLook(BeakerMix.Look.WhitePrecipitate);
+            m_Beaker?.SetLook(BeakerMix.Look.WhitePrecipitate, preserveFill: true);
             m_Action = m_Dark
                 ? "White AgCl formed! Wait ~5s in the dark, then pour C into MIX."
                 : "Precipitate formed — PRESS DARK now or it will burn.";
@@ -425,7 +421,7 @@ namespace EduQuest
             if (!m_Ended && !dark && m_Stabilized && m_Precipitate)
             {
                 m_Ended = true;
-                m_Beaker?.SetLook(BeakerMix.Look.GlowSuccess);
+                m_Beaker?.SetLook(BeakerMix.Look.GlowSuccess, preserveFill: true);
                 m_Action = "SUCCESS — silver-blue glow! Press RESET to run again.";
                 ClearSelection();
                 Debug.Log("[EduQuest] EXPERIMENT SUCCESS");
@@ -521,7 +517,7 @@ namespace EduQuest
             return m_Beaker.Current switch
             {
                 BeakerMix.Look.Empty => "empty",
-                BeakerMix.Look.ClearSolution => "clear (has AgNO₃)",
+                BeakerMix.Look.ClearSolution => "clear (has AgNO3)",
                 BeakerMix.Look.WhitePrecipitate => "white AgCl precipitate",
                 BeakerMix.Look.RawCrystal => "raw crystal — ready for fixer",
                 BeakerMix.Look.Stabilized => "stabilized — ready for light",
@@ -541,7 +537,7 @@ namespace EduQuest
             {
                 var vessel = click.GetComponent<ChemVessel>();
                 if (vessel == null) vessel = click.gameObject.AddComponent<ChemVessel>();
-                vessel.Configure(click.Role, string.IsNullOrEmpty(click.DisplayName) ? click.Role.ToString() : click.DisplayName);
+                vessel.Configure(click.Role, LabChemicals.DisplayName(click.Role));
                 vessel.RecacheRestFromCurrent();
             }
 

@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace EduQuest
 {
-    /// <summary>World-space label over a vessel; faces the camera.</summary>
+    /// <summary>World-space label just above a vessel rim; faces the camera.</summary>
     public class BottleLabel : MonoBehaviour
     {
         TextMesh m_Mesh;
@@ -11,28 +11,41 @@ namespace EduQuest
 
         public static BottleLabel Create(Transform parent, string text, Color color)
         {
+            // Sit just above the glass rim (not floating half a meter up)
+            float y = 0.26f;
+            var rim = parent.Find("GlassRim");
+            if (rim != null)
+                y = rim.localPosition.y + 0.05f;
+            else
+            {
+                var body = parent.Find("GlassBody");
+                if (body != null)
+                    y = body.localPosition.y + body.localScale.y + 0.05f;
+            }
+
             var go = new GameObject("Label");
             go.transform.SetParent(parent, false);
-            go.transform.localPosition = new Vector3(0f, 0.48f, 0f);
+            go.transform.localPosition = new Vector3(0f, y, 0f);
 
             var label = go.AddComponent<BottleLabel>();
             var tm = go.AddComponent<TextMesh>();
-            tm.fontSize = 64;
-            tm.characterSize = 0.024f;
+            tm.fontSize = 48;
+            tm.characterSize = 0.018f;
             tm.anchor = TextAnchor.LowerCenter;
             tm.alignment = TextAlignment.Center;
             tm.fontStyle = FontStyle.Bold;
+            // Default font often lacks unicode subscripts — keep ASCII in display names
 
             var shadowGo = new GameObject("Shadow");
             shadowGo.transform.SetParent(go.transform, false);
-            shadowGo.transform.localPosition = new Vector3(0.006f, -0.006f, 0.025f);
+            shadowGo.transform.localPosition = new Vector3(0.004f, -0.004f, 0.02f);
             var shadow = shadowGo.AddComponent<TextMesh>();
-            shadow.fontSize = 64;
-            shadow.characterSize = 0.024f;
+            shadow.fontSize = 48;
+            shadow.characterSize = 0.018f;
             shadow.anchor = TextAnchor.LowerCenter;
             shadow.alignment = TextAlignment.Center;
             shadow.fontStyle = FontStyle.Bold;
-            shadow.color = new Color(0f, 0f, 0f, 0.8f);
+            shadow.color = new Color(0f, 0f, 0f, 0.85f);
 
             label.m_Mesh = tm;
             label.m_Shadow = shadow;
@@ -42,6 +55,13 @@ namespace EduQuest
 
         public void SetText(string text, Color color)
         {
+            // Strip characters the default font may not draw
+            text = (text ?? "")
+                .Replace("₃", "3")
+                .Replace("₄", "4")
+                .Replace("·", " ")
+                .Trim();
+
             if (m_Mesh != null)
             {
                 m_Mesh.text = text;

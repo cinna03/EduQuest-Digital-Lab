@@ -58,9 +58,9 @@ namespace EduQuest
             box.center = new Vector3(0f, height * 0.5f, 0f);
             box.size = new Vector3(radius * 2.35f, height, radius * 2.35f);
 
-            // Liquid clearly inside the glass (not wrapping the outside)
-            var liquidMaxH = height * 0.7f;
-            var liquidRadius = radius * 0.62f;
+            // Liquid clearly inside the glass — wide enough to read, still inset from the wall
+            var liquidMaxH = height * 0.72f;
+            var liquidRadius = radius * 0.7f;
             var lv = LiquidVolume.Ensure(root.transform, liquidColor, fill, liquidMaxH, liquidRadius);
             lv.SetBaseY(height * 0.06f);
 

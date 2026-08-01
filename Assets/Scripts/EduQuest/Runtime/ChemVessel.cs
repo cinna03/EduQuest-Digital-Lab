@@ -46,7 +46,8 @@ namespace EduQuest
             EnsureLiquid();
             ForceGlassMaterials();
             CacheRest();
-            SetLabelVisible(false);
+            // Always show the chemical name — hover/select still glow, but labels stay readable
+            SetLabelVisible(true);
             SetSelected(false, instant: true);
         }
 
@@ -66,7 +67,8 @@ namespace EduQuest
                     m_SelectGlow.intensity = 1.8f + Mathf.Sin(Time.time * 7f) * 0.4f;
             }
 
-            SetLabelVisible(m_Hover || m_Selected);
+            // Labels stay on so A/B/C/D/MIX are never a guessing game
+            SetLabelVisible(true);
         }
 
         public void BeginPourLock()
@@ -122,12 +124,11 @@ namespace EduQuest
 
         void EnsureLiquid()
         {
-            DefaultLiquidForRole(Role, out m_DefaultLiquidColor, out m_DefaultFill);
+            LabChemicals.Appearance(Role, out m_DefaultLiquidColor, out m_DefaultFill, out _);
 
             m_Liquid = GetComponent<LiquidVolume>();
             if (m_Liquid != null)
             {
-                // Keep builder dimensions; only set color/fill
                 m_Liquid.SetLiquid(m_DefaultLiquidColor, m_DefaultFill, instant: true);
                 return;
             }
@@ -135,43 +136,12 @@ namespace EduQuest
             m_Liquid = LiquidVolume.Ensure(transform, m_DefaultLiquidColor, m_DefaultFill, 0.14f, 0.04f);
         }
 
-        static void DefaultLiquidForRole(ChemRole role, out Color color, out float fill)
-        {
-            switch (role)
-            {
-                case ChemRole.SilverNitrate:
-                    color = new Color(0.93f, 0.94f, 0.9f); // near-clear
-                    fill = 0.75f;
-                    break;
-                case ChemRole.SodiumChloride:
-                    color = new Color(0.55f, 0.82f, 1f);
-                    fill = 0.75f;
-                    break;
-                case ChemRole.Fixer:
-                    color = new Color(1f, 0.72f, 0.15f);
-                    fill = 0.75f;
-                    break;
-                case ChemRole.Distractor:
-                    color = new Color(0.15f, 0.4f, 0.95f);
-                    fill = 0.75f;
-                    break;
-                case ChemRole.ReactionBeaker:
-                    color = new Color(0.75f, 0.88f, 0.95f);
-                    fill = 0f;
-                    break;
-                default:
-                    color = new Color(0.7f, 0.85f, 1f);
-                    fill = 0.5f;
-                    break;
-            }
-        }
-
         void ForceGlassMaterials()
         {
             foreach (var r in GetComponentsInChildren<Renderer>(true))
             {
                 if (r == null) continue;
-                if (r.gameObject.name is "Substance" or "MixLiquid") continue;
+                if (r.gameObject.name is "Substance" or "MixLiquid" or "Meniscus") continue;
                 if (r.gameObject.name == "GlassRim" || r.gameObject.name == "GlassBase")
                     r.sharedMaterial = LabMaterials.GlassRim();
                 else
@@ -190,12 +160,14 @@ namespace EduQuest
 
         void EnsureLabel()
         {
-            if (m_Label != null) return;
+            if (string.IsNullOrEmpty(DisplayName))
+                DisplayName = LabChemicals.DisplayName(Role);
+
             m_Label = GetComponentInChildren<BottleLabel>(true);
             if (m_Label == null)
-                m_Label = BottleLabel.Create(transform, DisplayName, LabelColor(Role));
+                m_Label = BottleLabel.Create(transform, DisplayName, LabChemicals.LabelColor(Role));
             else
-                m_Label.SetText(DisplayName, LabelColor(Role));
+                m_Label.SetText(DisplayName, LabChemicals.LabelColor(Role));
         }
 
         void EnsureGlow()
@@ -241,14 +213,5 @@ namespace EduQuest
             m_Label.gameObject.SetActive(on);
         }
 
-        static Color LabelColor(ChemRole role) => role switch
-        {
-            ChemRole.SilverNitrate => Color.white,
-            ChemRole.SodiumChloride => new Color(0.7f, 0.9f, 1f),
-            ChemRole.Fixer => new Color(1f, 0.85f, 0.25f),
-            ChemRole.Distractor => new Color(0.45f, 0.75f, 1f),
-            ChemRole.ReactionBeaker => new Color(0.7f, 1f, 0.75f),
-            _ => Color.white
-        };
     }
 }
