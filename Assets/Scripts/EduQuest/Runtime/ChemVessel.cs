@@ -3,7 +3,7 @@ using UnityEngine;
 namespace EduQuest
 {
     /// <summary>
-    /// Interactive glassware: hover label, select (glow + levitate), pour source/target.
+    /// Interactive glassware: hover label, select (glow + levitate), liquid, pour.
     /// </summary>
     public class ChemVessel : MonoBehaviour
     {
@@ -14,16 +14,23 @@ namespace EduQuest
         [SerializeField] float moveSpeed = 8f;
 
         Vector3 m_RestLocalPos;
+        Quaternion m_RestLocalRot;
         bool m_RestCached;
         bool m_Selected;
         bool m_Hover;
+        bool m_PourLocked;
         BottleLabel m_Label;
         Light m_SelectGlow;
         Renderer[] m_Renderers;
         Color[] m_BaseColors;
         bool m_ColorsCached;
+        LiquidVolume m_Liquid;
+        Color m_DefaultLiquidColor;
+        float m_DefaultFill;
 
         public bool IsSelected => m_Selected;
+        public bool IsPourLocked => m_PourLocked;
+        public LiquidVolume Liquid => m_Liquid;
         public ChemClickable Clickable { get; private set; }
 
         public void Configure(ChemRole role, string displayName)
@@ -38,6 +45,7 @@ namespace EduQuest
             EnsureCollider();
             EnsureLabel();
             EnsureGlow();
+            EnsureLiquid();
             CacheRest();
             SetLabelVisible(false);
             SetSelected(false, instant: true);
@@ -50,10 +58,12 @@ namespace EduQuest
 
         void LateUpdate()
         {
+            if (m_PourLocked) return;
             if (!m_RestCached) CacheRest();
 
             var target = m_RestLocalPos + (m_Selected ? Vector3.up * levitateHeight : Vector3.zero);
             transform.localPosition = Vector3.Lerp(transform.localPosition, target, Time.deltaTime * moveSpeed);
+            transform.localRotation = Quaternion.Slerp(transform.localRotation, m_RestLocalRot, Time.deltaTime * moveSpeed);
 
             if (m_SelectGlow != null)
             {
@@ -62,25 +72,42 @@ namespace EduQuest
                     m_SelectGlow.intensity = 1.6f + Mathf.Sin(Time.time * 6f) * 0.35f;
             }
 
-            // Label on hover or while selected
             SetLabelVisible(m_Hover || m_Selected);
         }
 
-        public void SetHover(bool hover)
+        public void BeginPourLock()
         {
-            m_Hover = hover;
+            m_PourLocked = true;
+            if (m_SelectGlow != null) m_SelectGlow.enabled = false;
         }
+
+        public void EndPourLock()
+        {
+            m_PourLocked = false;
+            // Snap back to rest basis after animation
+            if (m_RestCached)
+            {
+                transform.localPosition = m_RestLocalPos + (m_Selected ? Vector3.up * levitateHeight : Vector3.zero);
+                transform.localRotation = m_RestLocalRot;
+            }
+            ApplySelectTint(m_Selected);
+        }
+
+        public void SetHover(bool hover) => m_Hover = hover;
 
         public void SetSelected(bool selected, bool instant = false)
         {
             m_Selected = selected;
             if (!m_RestCached) CacheRest();
 
-            if (instant)
+            if (instant && !m_PourLocked)
+            {
                 transform.localPosition = m_RestLocalPos + (selected ? Vector3.up * levitateHeight : Vector3.zero);
+                transform.localRotation = m_RestLocalRot;
+            }
 
             if (m_SelectGlow != null)
-                m_SelectGlow.enabled = selected;
+                m_SelectGlow.enabled = selected && !m_PourLocked;
 
             ApplySelectTint(selected);
         }
@@ -88,29 +115,61 @@ namespace EduQuest
         public void ResetVisual()
         {
             m_Hover = false;
+            m_PourLocked = false;
             SetSelected(false, instant: true);
             SetLabelVisible(false);
-            ClearContamination();
+            if (m_Liquid != null)
+                m_Liquid.SetLiquid(m_DefaultLiquidColor, m_DefaultFill, instant: true);
+            ApplySelectTint(false);
         }
 
-        /// <summary>Dirty the liquid fill after a wrong pour into this vessel.</summary>
         public void ShowContamination(Color tint)
         {
-            foreach (Transform t in GetComponentsInChildren<Transform>(true))
-            {
-                if (t.name != "Substance" && t.name != "MixLiquid") continue;
-                var r = t.GetComponent<Renderer>();
-                if (r == null) continue;
-                r.enabled = true;
-                r.sharedMaterial = LabMaterials.Solid(tint, 0.35f);
-            }
+            if (m_Liquid == null) EnsureLiquid();
+            m_Liquid.SetLiquid(tint, Mathf.Max(0.55f, m_Liquid.Fill), instant: true);
         }
 
-        void ClearContamination()
+        public Color PourStreamColor() => m_Liquid != null ? m_Liquid.Color : m_DefaultLiquidColor;
+
+        void EnsureLiquid()
         {
-            // Substances are rebuilt with the kit on full ResetRun; nothing required here
-            // beyond select tint reset (ApplySelectTint false).
-            ApplySelectTint(false);
+            DefaultLiquidForRole(Role, out m_DefaultLiquidColor, out m_DefaultFill, out var h, out var rad);
+            m_Liquid = LiquidVolume.Ensure(transform, m_DefaultLiquidColor, m_DefaultFill, h, rad);
+        }
+
+        static void DefaultLiquidForRole(ChemRole role, out Color color, out float fill, out float height, out float radius)
+        {
+            height = 0.11f;
+            radius = 0.07f;
+            switch (role)
+            {
+                case ChemRole.SilverNitrate:
+                    color = new Color(0.95f, 0.95f, 0.88f);
+                    fill = 0.88f;
+                    break;
+                case ChemRole.SodiumChloride:
+                    color = new Color(0.72f, 0.9f, 1f);
+                    fill = 0.88f;
+                    break;
+                case ChemRole.Fixer:
+                    color = new Color(1f, 0.68f, 0.12f);
+                    fill = 0.88f;
+                    break;
+                case ChemRole.Distractor:
+                    color = new Color(0.12f, 0.4f, 1f);
+                    fill = 0.88f;
+                    break;
+                case ChemRole.ReactionBeaker:
+                    color = new Color(0.75f, 0.88f, 0.95f);
+                    fill = 0f; // starts empty
+                    height = 0.13f;
+                    radius = 0.09f;
+                    break;
+                default:
+                    color = new Color(0.7f, 0.85f, 1f);
+                    fill = 0.5f;
+                    break;
+            }
         }
 
         void EnsureCollider()
@@ -155,7 +214,7 @@ namespace EduQuest
         void CacheRest()
         {
             m_RestLocalPos = transform.localPosition;
-            // If currently elevated, store floor position
+            m_RestLocalRot = Quaternion.identity;
             if (m_Selected)
                 m_RestLocalPos -= Vector3.up * levitateHeight;
             m_RestCached = true;
@@ -164,6 +223,8 @@ namespace EduQuest
         public void RecacheRestFromCurrent()
         {
             m_RestLocalPos = transform.localPosition;
+            m_RestLocalRot = Quaternion.identity;
+            transform.localRotation = Quaternion.identity;
             m_RestCached = true;
         }
 
@@ -198,7 +259,7 @@ namespace EduQuest
             {
                 var r = m_Renderers[i];
                 if (r == null) continue;
-                if (r.gameObject.name == "Substance" || r.gameObject.name == "MixLiquid") continue;
+                if (r.gameObject.name is "Substance" or "MixLiquid") continue;
                 var mat = r.material;
                 var c = selected
                     ? Color.Lerp(m_BaseColors[i], new Color(1f, 0.92f, 0.4f), 0.45f)

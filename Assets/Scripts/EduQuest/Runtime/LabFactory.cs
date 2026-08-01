@@ -125,8 +125,10 @@ namespace EduQuest
             go.transform.localScale = Vector3.one * scale;
             SitOnFloorLocal(go);
 
+            // Liquids for experiment vessels are created by ChemVessel/LiquidVolume.
+            // Props still get a simple fill for atmosphere.
             if (liquid.HasValue && fillHeight > 0.001f)
-                AddFill(go.transform, liquid.Value, fillHeight, 0.07f * scale);
+                LiquidVolume.Ensure(go.transform, liquid.Value, 0.7f, fillHeight + 0.04f, 0.06f * scale);
 
             return go;
         }

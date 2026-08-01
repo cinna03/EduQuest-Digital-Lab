@@ -26,6 +26,8 @@ namespace EduQuest
         BeakerMix m_Beaker;
         ChemVessel m_Selected;
         ChemVessel m_Hover;
+        PourAnimator m_Pour;
+        bool m_Busy;
         bool m_Dark = true;
         bool m_Ended;
         float m_Ag, m_Cl, m_Fix;
@@ -63,11 +65,12 @@ namespace EduQuest
             if (kitRoot == null) kitRoot = GameObject.Find("LabKit")?.transform;
             if (rayCamera == null) rayCamera = Camera.main;
 
+            m_Pour = PourAnimator.Ensure(gameObject);
             WireVessels();
             EnsureBeakerVisuals();
             HookUi();
             ResetRun();
-            Debug.Log("[EduQuest] Hover for labels · click to select · click again to deselect · click target to pour");
+            Debug.Log("[EduQuest] Hover · select · pour (animated) into any vessel");
         }
 
         void HookUi()
@@ -89,8 +92,11 @@ namespace EduQuest
         void Update()
         {
             HandleKeys();
-            UpdateHover();
-            HandleClick();
+            if (!m_Busy)
+            {
+                UpdateHover();
+                HandleClick();
+            }
 
             if (!m_Ended && m_Precipitate && !m_Settled && !m_Stabilized)
             {
@@ -216,88 +222,187 @@ namespace EduQuest
 
         void TryPour(ChemVessel source, ChemVessel target)
         {
+            if (m_Busy || (m_Pour != null && m_Pour.IsPouring)) return;
+
             var src = source.Role;
             var dst = target.Role;
 
-            // Free pouring: any vessel can receive another — wrong mixes ruin the batch.
             if (src == ChemRole.ReactionBeaker)
             {
-                Spoil(target, $"Dumped MIX into {target.DisplayName} — reaction wasted.");
+                AnimateThen(source, target, spoil: true,
+                    $"Dumped MIX into {target.DisplayName} — reaction wasted.",
+                    after: null);
                 return;
             }
 
-            // Correct path: reagent → MIX beaker (chemistry steps)
-            if (dst == ChemRole.ReactionBeaker)
+            // Soft blocks on MIX path (don't animate yet)
+            if (dst == ChemRole.ReactionBeaker && src != ChemRole.Distractor)
             {
-                if (src == ChemRole.Distractor)
+                if (src == ChemRole.SodiumChloride && m_Ag <= 0f)
                 {
-                    Spoil(target, "Poured CuSO₄ (D) into MIX — contaminated.");
+                    m_Action = "Need A in MIX first. Keep holding B, or put down and pick A.";
+                    RefreshUi();
                     return;
                 }
-
-                var consumed = src switch
+                if (src == ChemRole.Fixer)
                 {
-                    ChemRole.SilverNitrate => PourA(),
-                    ChemRole.SodiumChloride => PourB(),
-                    ChemRole.Fixer => PourC(),
-                    _ => true
-                };
+                    if (!m_Precipitate)
+                    {
+                        m_Action = "Need A + B precipitate in MIX first.";
+                        RefreshUi();
+                        return;
+                    }
+                    if (!m_Settled)
+                    {
+                        m_Action = "Still settling — wait for 100%, then pour C.";
+                        RefreshUi();
+                        return;
+                    }
+                }
+            }
 
-                if (consumed)
-                    ClearSelection();
+            if (dst == ChemRole.ReactionBeaker && src == ChemRole.Fixer && m_Fix > 0f)
+            {
+                m_Action = "MIX already has fixer.";
                 RefreshUi();
                 return;
             }
 
-            // Reagent → another bottle (or any non-MIX vessel): allowed, but wrong for this experiment
-            Spoil(target,
-                $"Mixed {source.DisplayName} into {target.DisplayName}. Wrong combination — restart.");
-        }
-
-        void Spoil(ChemVessel target, string reason)
-        {
-            if (target != null)
+            // Fixer into MIX while light is on — animate, then fail
+            if (dst == ChemRole.ReactionBeaker && src == ChemRole.Fixer && m_Settled && m_Precipitate && !m_Dark)
             {
-                if (target.Role == ChemRole.ReactionBeaker)
-                    m_Beaker?.SetLook(BeakerMix.Look.Contaminated);
-                else
-                    target.ShowContamination(new Color(0.25f, 0.45f, 0.2f)); // dirty green mix
+                m_Action = $"Pouring {source.DisplayName} into MIX…";
+                RefreshUi();
+                AnimateThen(source, target, spoil: true, "Tried to fix while light was ON.", null);
+                return;
             }
 
-            Fail(reason);
-            ClearSelection();
+            // Valid chemistry pours into MIX (A / B / C at the right time)
+            var validMixPour = dst == ChemRole.ReactionBeaker
+                               && (src == ChemRole.SilverNitrate
+                                   || src == ChemRole.SodiumChloride
+                                   || src == ChemRole.Fixer);
+
+            if (validMixPour && src != ChemRole.Distractor)
+            {
+                m_Action = $"Pouring {source.DisplayName} into MIX…";
+                RefreshUi();
+                AnimateThen(source, target, spoil: false, null, () => ApplyValidPour(src));
+                return;
+            }
+
+            // Wrong pour (bottle→bottle, D→MIX, etc.) — still animate, then spoil
+            var reason = src == ChemRole.Distractor && dst == ChemRole.ReactionBeaker
+                ? "Poured CuSO₄ (D) into MIX — contaminated."
+                : $"Mixed {source.DisplayName} into {target.DisplayName}. Wrong combination — restart.";
+
+            m_Action = $"Pouring {source.DisplayName} → {target.DisplayName}…";
             RefreshUi();
+            AnimateThen(source, target, spoil: true, reason, null);
         }
 
-        bool PourA()
+        void PreviewMixAfterPour(ChemRole src, out Color color, out float fill)
         {
-            if (m_Fix > 0f && m_Ag <= 0f)
+            // Approximate look mid-pour for animation target
+            if (src == ChemRole.SilverNitrate && m_Cl <= 0f)
             {
-                Fail("Fixer was added first — no crystal can form.");
-                return true;
+                color = new Color(0.75f, 0.88f, 0.95f);
+                fill = 0.4f;
             }
-
-            m_Ag = TargetAg;
-            m_Beaker?.SetLook(BeakerMix.Look.ClearSolution);
-            m_Action = m_Dark
-                ? "Poured A (AgNO₃) into MIX. Next: pick B, pour into MIX."
-                : "Poured A — room is LIGHT. Press DARK, then pour B.";
-            TryFormPrecipitate();
-            return true;
+            else if (src == ChemRole.SodiumChloride || (src == ChemRole.SilverNitrate && m_Cl > 0f))
+            {
+                color = new Color(0.96f, 0.96f, 0.98f);
+                fill = 0.62f;
+            }
+            else if (src == ChemRole.Fixer)
+            {
+                color = new Color(0.86f, 0.9f, 0.96f);
+                fill = 0.7f;
+            }
+            else
+            {
+                color = new Color(0.3f, 0.5f, 0.22f);
+                fill = 0.6f;
+            }
         }
 
-        bool PourB()
+        void AnimateThen(ChemVessel source, ChemVessel target, bool spoil, string spoilReason, System.Action after)
         {
-            if (m_Ag <= 0f)
+            m_Busy = true;
+            var stream = source.PourStreamColor();
+            var srcAfter = Mathf.Max(0.25f, (source.Liquid != null ? source.Liquid.Fill : 0.85f) - 0.28f);
+
+            Color dstColor;
+            float dstFill;
+            if (spoil)
             {
-                m_Action = "Need A in the MIX beaker first. Keep holding B, or put down and pick A.";
-                return false;
+                dstColor = new Color(0.28f, 0.48f, 0.2f);
+                dstFill = Mathf.Clamp01((target.Liquid != null ? target.Liquid.Fill : 0.2f) + 0.35f);
+            }
+            else
+            {
+                PreviewMixAfterPour(source.Role, out dstColor, out dstFill);
             }
 
-            m_Cl = TargetCl;
-            m_Action = "Poured B (NaCl) into MIX.";
-            TryFormPrecipitate();
-            return true;
+            if (m_Pour == null) m_Pour = PourAnimator.Ensure(gameObject);
+
+            m_Pour.Play(source, target, stream, srcAfter, dstColor, dstFill, () =>
+            {
+                if (spoil)
+                {
+                    if (target.Role == ChemRole.ReactionBeaker)
+                        m_Beaker?.SetLook(BeakerMix.Look.Contaminated);
+                    else
+                        target.ShowContamination(dstColor);
+                    Fail(spoilReason);
+                }
+                else
+                {
+                    after?.Invoke();
+                }
+
+                ClearSelection();
+                m_Busy = false;
+                RefreshUi();
+            });
+        }
+
+        void ApplyValidPour(ChemRole src)
+        {
+            switch (src)
+            {
+                case ChemRole.SilverNitrate:
+                    if (m_Fix > 0f && m_Ag <= 0f)
+                    {
+                        Fail("Fixer was added first — no crystal can form.");
+                        return;
+                    }
+                    m_Ag = TargetAg;
+                    m_Beaker?.SetLook(BeakerMix.Look.ClearSolution);
+                    m_Action = m_Dark
+                        ? "Poured A (AgNO₃) into MIX. Next: pick B, pour into MIX."
+                        : "Poured A — room is LIGHT. Press DARK, then pour B.";
+                    TryFormPrecipitate();
+                    break;
+
+                case ChemRole.SodiumChloride:
+                    m_Cl = TargetCl;
+                    m_Action = "Poured B (NaCl) into MIX.";
+                    TryFormPrecipitate();
+                    break;
+
+                case ChemRole.Fixer:
+                    if (!m_Dark)
+                    {
+                        Fail("Tried to fix while light was ON.");
+                        return;
+                    }
+                    m_Fix = TargetFix;
+                    m_Stabilized = true;
+                    m_Beaker?.SetLook(BeakerMix.Look.Stabilized);
+                    m_Action = "Poured C (Fixer). Stabilized! Press LIGHT to activate.";
+                    break;
+            }
         }
 
         void TryFormPrecipitate()
@@ -309,31 +414,6 @@ namespace EduQuest
             m_Action = m_Dark
                 ? "White AgCl formed! Wait ~5s in the dark, then pour C into MIX."
                 : "Precipitate formed — PRESS DARK now or it will burn.";
-        }
-
-        bool PourC()
-        {
-            if (!m_Precipitate)
-            {
-                m_Action = "Need A + B precipitate in MIX first.";
-                return false;
-            }
-            if (!m_Settled)
-            {
-                m_Action = "Still settling — wait for 100%, then pour C.";
-                return false;
-            }
-            if (!m_Dark)
-            {
-                Fail("Tried to fix while light was ON.");
-                return true;
-            }
-
-            m_Fix = TargetFix;
-            m_Stabilized = true;
-            m_Beaker?.SetLook(BeakerMix.Look.Stabilized);
-            m_Action = "Poured C (Fixer). Stabilized! Press LIGHT to activate.";
-            return true;
         }
 
         void SetDark(bool dark)
