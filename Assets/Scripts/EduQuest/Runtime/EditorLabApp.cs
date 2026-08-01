@@ -5,15 +5,17 @@ using UnityEngine.UI;
 namespace EduQuest
 {
     /// <summary>
-    /// Editor workspace bootstrap: clear experiment kit + on-screen UI.
+    /// Editor workspace: 3-level campaign first, lab mix unlocked at the end.
     /// </summary>
     public class EditorLabApp : MonoBehaviour
     {
-        [SerializeField] ExperimentHud ui;
+        [SerializeField] CampaignHud campaignHud;
+        [SerializeField] ExperimentHud labHud;
         [SerializeField] Transform kitRoot;
         [SerializeField] Light keyLight;
         [SerializeField] Light fillLight;
         [SerializeField] Camera viewCamera;
+        [SerializeField] CampaignFlow campaign;
         [SerializeField] EditorCrystalExperiment experiment;
 
         public void Configure(
@@ -23,7 +25,6 @@ namespace EduQuest
             Light fill,
             Camera cam)
         {
-            // guide ignored — ExperimentHud replaces GuideHud for clarity
             kitRoot = kit;
             keyLight = key;
             fillLight = fill;
@@ -44,24 +45,44 @@ namespace EduQuest
                 if (fill != null) fillLight = fill.GetComponent<Light>();
             }
 
-            ui = EnsureUi();
+            EnsureEventSystemAndCanvas(out var canvas);
+            HideLegacyGuideHud();
+
+            campaignHud = campaignHud != null ? campaignHud : CampaignHud.Create(canvas.transform);
+            labHud = labHud != null ? labHud : EnsureLabHud(canvas.transform);
+            // Lab HUD stays available for DARK/LIGHT during light gate + mix
             kitRoot = EnsureExperimentKit();
 
             if (experiment == null)
                 experiment = GetComponent<EditorCrystalExperiment>()
                              ?? gameObject.AddComponent<EditorCrystalExperiment>();
+            experiment.Configure(labHud, kitRoot, keyLight, fillLight, viewCamera);
+            // Do not Begin lab yet — campaign unlocks it
 
-            experiment.Configure(ui, kitRoot, keyLight, fillLight, viewCamera);
-            experiment.Begin();
+            if (campaign == null)
+                campaign = GetComponent<CampaignFlow>() ?? gameObject.AddComponent<CampaignFlow>();
+            campaign.Configure(campaignHud, kitRoot, keyLight, fillLight, viewCamera, experiment);
+            campaign.Begin();
+
+            // Let light-gate use ExperimentHud DARK/LIGHT without starting mix logic early
+            labHud.DarkRequested += OnLabDarkRequested;
         }
 
-        ExperimentHud EnsureUi()
+        void OnDestroy()
         {
-            if (ui != null) return ui;
-            var existing = FindAnyObjectByType<ExperimentHud>();
-            if (existing != null) return existing;
+            if (labHud != null)
+                labHud.DarkRequested -= OnLabDarkRequested;
+        }
 
-            var canvas = FindAnyObjectByType<Canvas>();
+        void OnLabDarkRequested(bool dark)
+        {
+            if (keyLight != null) keyLight.intensity = dark ? 0.12f : 1.15f;
+            if (fillLight != null) fillLight.intensity = dark ? 0.05f : 0.35f;
+        }
+
+        void EnsureEventSystemAndCanvas(out Canvas canvas)
+        {
+            canvas = FindAnyObjectByType<Canvas>();
             if (canvas == null)
             {
                 var canvasGo = new GameObject("Canvas", typeof(RectTransform));
@@ -73,18 +94,25 @@ namespace EduQuest
                 canvasGo.AddComponent<GraphicRaycaster>();
             }
 
-            // Hide old GuideHud clutter if present
-            foreach (var g in FindObjectsByType<GuideHud>(FindObjectsSortMode.None))
-                g.gameObject.SetActive(false);
-
             if (FindAnyObjectByType<EventSystem>() == null)
             {
                 var es = new GameObject("EventSystem");
                 es.AddComponent<EventSystem>();
                 es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
             }
+        }
 
-            return ExperimentHud.Create(canvas.transform);
+        void HideLegacyGuideHud()
+        {
+            foreach (var g in FindObjectsByType<GuideHud>(FindObjectsSortMode.None))
+                g.gameObject.SetActive(false);
+        }
+
+        ExperimentHud EnsureLabHud(Transform canvas)
+        {
+            var existing = FindAnyObjectByType<ExperimentHud>();
+            if (existing != null) return existing;
+            return ExperimentHud.Create(canvas);
         }
 
         Transform EnsureExperimentKit()
@@ -98,7 +126,7 @@ namespace EduQuest
             if (old != null)
             {
                 spawnPos = old.transform.position;
-                spawnRot = Quaternion.identity; // force upright kit root
+                spawnRot = Quaternion.identity;
                 if (parent == null) parent = old.transform.parent;
                 old.name = "LabKit_OLD";
                 old.SetActive(false);
@@ -110,7 +138,8 @@ namespace EduQuest
 
             var kit = LabFactory.CreateLabKit(parent, spawnPos, spawnRot, forExperiment: true);
             kit.name = "LabKit";
-            Debug.Log($"[EduQuest] Experiment kit ready ({kit.transform.childCount} pieces). Use on-screen buttons.");
+            kit.SetActive(false); // hidden until Level 3 lab
+            Debug.Log("[EduQuest] Campaign ready — kit hidden until light gate + lab unlock.");
             return kit.transform;
         }
     }

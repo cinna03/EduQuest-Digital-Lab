@@ -425,6 +425,7 @@ namespace EduQuest
                 m_Action = "SUCCESS — silver-blue glow! Press RESET to run again.";
                 ClearSelection();
                 Debug.Log("[EduQuest] EXPERIMENT SUCCESS");
+                FindAnyObjectByType<CampaignFlow>()?.NotifyLabSuccess();
             }
             else if (!m_Ended)
             {
