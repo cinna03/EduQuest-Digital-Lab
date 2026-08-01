@@ -67,7 +67,7 @@ namespace EduQuest
             return hud;
         }
 
-        public void Show(string step, string title, string body, string action, GuideHud.Tone tone,
+        public void Show(string step, string title, string body, string action, HudTone tone,
             bool showWin, bool showFound, bool showLight, bool showLab)
         {
             if (m_Step) m_Step.text = step;
@@ -84,15 +84,15 @@ namespace EduQuest
             Color actionCol = new Color(1f, 0.92f, 0.45f);
             switch (tone)
             {
-                case GuideHud.Tone.Success:
+                case HudTone.Success:
                     banner = new Color(0.05f, 0.35f, 0.15f, 0.92f);
                     actionCol = new Color(0.55f, 1f, 0.7f);
                     break;
-                case GuideHud.Tone.Fail:
+                case HudTone.Fail:
                     banner = new Color(0.4f, 0.08f, 0.08f, 0.92f);
                     actionCol = new Color(1f, 0.55f, 0.45f);
                     break;
-                case GuideHud.Tone.Warn:
+                case HudTone.Warn:
                     banner = new Color(0.3f, 0.22f, 0.05f, 0.9f);
                     actionCol = new Color(1f, 0.9f, 0.4f);
                     break;

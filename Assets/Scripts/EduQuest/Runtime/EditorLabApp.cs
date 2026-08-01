@@ -4,28 +4,19 @@ using UnityEngine.UI;
 
 namespace EduQuest
 {
-    /// <summary>
-    /// Editor workspace: 3-level campaign first, lab mix unlocked at the end.
-    /// </summary>
+    /// <summary>Editor bootstrap for the timed riddle combat campaign (no chemistry lab).</summary>
     public class EditorLabApp : MonoBehaviour
     {
         [SerializeField] CampaignHud campaignHud;
-        [SerializeField] ExperimentHud labHud;
-        [SerializeField] Transform kitRoot;
+        [SerializeField] Transform arenaRoot;
         [SerializeField] Light keyLight;
         [SerializeField] Light fillLight;
         [SerializeField] Camera viewCamera;
         [SerializeField] CampaignFlow campaign;
-        [SerializeField] EditorCrystalExperiment experiment;
 
-        public void Configure(
-            GuideHud guide,
-            Transform kit,
-            Light key,
-            Light fill,
-            Camera cam)
+        public void Configure(Transform arena, Light key, Light fill, Camera cam)
         {
-            kitRoot = kit;
+            arenaRoot = arena;
             keyLight = key;
             fillLight = fill;
             viewCamera = cam;
@@ -46,38 +37,13 @@ namespace EduQuest
             }
 
             EnsureEventSystemAndCanvas(out var canvas);
-            HideLegacyGuideHud();
-
             campaignHud = campaignHud != null ? campaignHud : CampaignHud.Create(canvas.transform);
-            labHud = labHud != null ? labHud : EnsureLabHud(canvas.transform);
-            // Lab HUD stays available for DARK/LIGHT during light gate + mix
-            kitRoot = EnsureExperimentKit();
-
-            if (experiment == null)
-                experiment = GetComponent<EditorCrystalExperiment>()
-                             ?? gameObject.AddComponent<EditorCrystalExperiment>();
-            experiment.Configure(labHud, kitRoot, keyLight, fillLight, viewCamera);
-            // Do not Begin lab yet — campaign unlocks it
+            arenaRoot = arenaRoot != null ? arenaRoot : EnsureArena();
 
             if (campaign == null)
                 campaign = GetComponent<CampaignFlow>() ?? gameObject.AddComponent<CampaignFlow>();
-            campaign.Configure(campaignHud, kitRoot, keyLight, fillLight, viewCamera, experiment);
+            campaign.Configure(campaignHud, arenaRoot, keyLight, fillLight, viewCamera);
             campaign.Begin();
-
-            // Let light-gate use ExperimentHud DARK/LIGHT without starting mix logic early
-            labHud.DarkRequested += OnLabDarkRequested;
-        }
-
-        void OnDestroy()
-        {
-            if (labHud != null)
-                labHud.DarkRequested -= OnLabDarkRequested;
-        }
-
-        void OnLabDarkRequested(bool dark)
-        {
-            if (keyLight != null) keyLight.intensity = dark ? 0.12f : 1.15f;
-            if (fillLight != null) fillLight.intensity = dark ? 0.05f : 0.35f;
         }
 
         void EnsureEventSystemAndCanvas(out Canvas canvas)
@@ -102,45 +68,22 @@ namespace EduQuest
             }
         }
 
-        void HideLegacyGuideHud()
-        {
-            foreach (var g in FindObjectsByType<GuideHud>(FindObjectsSortMode.None))
-                g.gameObject.SetActive(false);
-        }
-
-        ExperimentHud EnsureLabHud(Transform canvas)
-        {
-            var existing = FindAnyObjectByType<ExperimentHud>();
-            if (existing != null) return existing;
-            return ExperimentHud.Create(canvas);
-        }
-
-        Transform EnsureExperimentKit()
+        Transform EnsureArena()
         {
             var room = GameObject.Find("EditorRoom");
-            var parent = room != null ? room.transform : null;
-            var spawnPos = new Vector3(0f, 0.03f, 0.4f);
-            var spawnRot = Quaternion.identity;
+            if (room == null)
+                room = new GameObject("EditorRoom");
 
-            var old = GameObject.Find("LabKit");
-            if (old != null)
+            var marker = room.transform.Find("ArenaCenter");
+            if (marker == null)
             {
-                spawnPos = old.transform.position;
-                spawnRot = Quaternion.identity;
-                if (parent == null) parent = old.transform.parent;
-                old.name = "LabKit_OLD";
-                old.SetActive(false);
-                Destroy(old);
+                var go = new GameObject("ArenaCenter");
+                go.transform.SetParent(room.transform, false);
+                go.transform.position = new Vector3(0f, 0.03f, 0.4f);
+                marker = go.transform;
             }
 
-            if (parent == null)
-                parent = new GameObject("EditorRoom").transform;
-
-            var kit = LabFactory.CreateLabKit(parent, spawnPos, spawnRot, forExperiment: true);
-            kit.name = "LabKit";
-            kit.SetActive(false); // hidden until Level 3 lab
-            Debug.Log("[EduQuest] Campaign ready — kit hidden until light gate + lab unlock.");
-            return kit.transform;
+            return marker;
         }
     }
 }

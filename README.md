@@ -1,32 +1,47 @@
-# EduQuest · Photographic Crystal Puzzle
+# EduQuest · Timed Science Riddle Campaign
 
-AR chemistry lab (ALU AR/VR summative): form a **stable photographic crystal** from a silver-chloride–inspired simulation — with wrong bottles, measurements, timing, and light/dark rules.
+AR evaluation game: kids **fight short waves**, then solve **science riddles** by finding real-world clues (sky/clouds, flowers, light). Finish all **3 levels before time runs out** — the faster you finish, the higher your score.
 
 **Author:** Cannelle Mwiza  
 **GitHub:** https://github.com/cinna03/EduQuest-Digital-Lab
 
-## Correct path
-1. **LIGHT OFF** (dark/dim room — camera sensor)  
-2. Place beaker on table  
-3. **10 ml** Silver Nitrate (A)  
-4. **10 ml** Sodium Chloride (B) within ~10s → white precipitate  
-5. Wait ~5s → raw crystal  
-6. **5 ml** Sodium Thiosulfate (C) fixer  
-7. **LIGHT ON** (bright) → silver-blue glow + score  
+## How it works
 
-## Wrong paths
-Wrong bottle · bad ml · light too early · fixer too early/late/much → different failure visuals + journal + score /100
+| Stage | What happens | Learning check |
+|-------|----------------|----------------|
+| **Level 1** | Easy combat (frogs/rats) → riddle | Infer **sky / clouds** |
+| **Level 2** | Harder combat (enemies attack) → riddle | Infer **flowers** (germination) |
+| **Level 3** | Final riddle | Infer **light** (physics) |
 
-## Run (desktop)
-1. Unity 6 → **EduQuest → Build Photographic Crystal Lab**  
-2. Play → allow camera → dim room while mixing  
+- During riddle hunts there are **no enemies**
+- Combat stays on a **shared horizontal ground** (living-room floor / table)
+- Riddles **do not name the object** — the player must figure it out
+- **3:00** total time limit; remaining time boosts **score + stars**
+- Time out = failed evaluation → RESET to retry
 
-## Run (phone AR)
-1. Install AR Foundation **6.5** packages (see `docs/PHONE_AR_BUILD.md`)  
-2. XR Plug-in Management → ARCore / ARKit  
-3. Build And Run → scan table → tap plane → mix  
+## Editor test (desktop — no phone needed)
 
-**SIMULATION ONLY** — silver nitrate is hazardous in real life.
+1. Open this Unity project  
+2. Menu **EduQuest → Editor Test → Build Editor Test Scene**  
+3. Press **Play** ▶  
+   Scene: `Assets/Scenes/EduQuestLab_EditorTest.unity`
 
-## Docs
-`docs/PART2_GDD.md` · `docs/SUMMATIVE_SUBMISSION_HUB.md` · `docs/VIDEO_SCRIPT.md` · `docs/LIGHT_LAB_AR.md`
+Or: **EduQuest → Editor Test → Open & Play Ready**
+
+**Editor stubs:** `WIN WAVE` clears combat; `SOLVED RIDDLE` stands in for AR finds until phone detection is wired.
+
+## Phone AR
+
+1. **EduQuest → Build Clean AR Campaign** → `Assets/Scenes/EduQuestLab.unity`  
+2. **File → Build Settings → iOS/Android → Build And Run**  
+3. Scan a flat surface → tap to place the arena → play the timed campaign  
+
+## Project layout (what matters)
+
+- `Assets/Scripts/EduQuest/Runtime/` — campaign flow, combat, HUD, AR place  
+- `Assets/Resources/EduQuest/Enemies/` — Quaternius CC0 enemy meshes  
+- `Assets/Scenes/` — editor test + AR campaign scenes  
+
+## Credits
+
+- Enemy models: [Quaternius — Easy Animated Enemy Pack](https://quaternius.itch.io/animated-easy-enemies) (CC0)

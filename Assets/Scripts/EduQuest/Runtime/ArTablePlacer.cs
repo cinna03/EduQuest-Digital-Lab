@@ -8,7 +8,7 @@ using UnityEngine.XR.ARSubsystems;
 
 namespace EduQuest
 {
-    /// <summary>Phone AR: find a horizontal plane, then place the lab once.</summary>
+    /// <summary>Phone AR: find a horizontal plane, then place the campaign arena once.</summary>
     [RequireComponent(typeof(ARRaycastManager))]
     public class ArTablePlacer : MonoBehaviour
     {
