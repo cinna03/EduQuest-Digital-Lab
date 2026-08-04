@@ -1,13 +1,14 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.ARSubsystems;
 using UnityEngine.XR.Interaction.Toolkit.Samples.ARStarterAssets;
 using UnityEngine.XR.Templates.AR;
 
 namespace OrbitScout.Platform
 {
     /// <summary>
-    /// After Orbit Scout placement, fade out AR plane / surface debug meshes so only the quiz content remains.
+    /// Hides AR plane / surface debug meshes after the solar system is placed.
     /// </summary>
     public static class OrbitScoutArPlanePresentation
     {
@@ -16,109 +17,141 @@ namespace OrbitScout.Platform
             if (planeManager == null)
                 return;
 
-            OrbitScoutPlaneFadeDriver driver = planeManager.GetComponent<OrbitScoutPlaneFadeDriver>();
-            if (driver == null)
-                driver = planeManager.gameObject.AddComponent<OrbitScoutPlaneFadeDriver>();
+            OrbitScoutPlaneVisibilityController controller =
+                planeManager.GetComponent<OrbitScoutPlaneVisibilityController>();
+            if (controller == null)
+                controller = planeManager.gameObject.AddComponent<OrbitScoutPlaneVisibilityController>();
 
-            driver.Begin(planeManager);
+            controller.HideAllSurfaces(planeManager);
         }
 
         public static void ShowForPlacementScan(ARPlaneManager planeManager)
         {
-            OrbitScoutPlaneFadeDriver.RestoreScanningVisuals(planeManager);
-        }
-    }
-
-    sealed class OrbitScoutPlaneFadeDriver : MonoBehaviour
-    {
-        const float FadeSeconds = 0.85f;
-
-        GameObject savedPlanePrefab;
-
-        public void Begin(ARPlaneManager planeManager)
-        {
-            if (savedPlanePrefab == null && planeManager.planePrefab != null)
-                savedPlanePrefab = planeManager.planePrefab;
-
-            StopAllCoroutines();
-            StartCoroutine(FadeRoutine(planeManager));
-        }
-
-        public static void RestoreScanningVisuals(ARPlaneManager planeManager)
-        {
             if (planeManager == null)
                 return;
 
-            OrbitScoutPlaneFadeDriver driver = planeManager.GetComponent<OrbitScoutPlaneFadeDriver>();
-            if (driver != null && driver.savedPlanePrefab != null)
-                planeManager.planePrefab = driver.savedPlanePrefab;
+            OrbitScoutPlaneVisibilityController controller =
+                planeManager.GetComponent<OrbitScoutPlaneVisibilityController>();
+            if (controller == null)
+                controller = planeManager.gameObject.AddComponent<OrbitScoutPlaneVisibilityController>();
 
-            foreach (ARPlane plane in planeManager.trackables)
+            controller.ShowSurfacesForScanning(planeManager);
+        }
+    }
+
+    sealed class OrbitScoutPlaneVisibilityController : MonoBehaviour
+    {
+        const float EnforceHideSeconds = 3f;
+
+        ARPlaneManager planeManager;
+        bool hideSurfaces;
+        GameObject savedPlanePrefab;
+        PlaneDetectionMode savedDetectionMode = PlaneDetectionMode.Horizontal;
+
+        public void HideAllSurfaces(ARPlaneManager manager)
+        {
+            planeManager = manager;
+            hideSurfaces = true;
+
+            if (savedPlanePrefab == null && manager.planePrefab != null)
+                savedPlanePrefab = manager.planePrefab;
+
+            savedDetectionMode = manager.requestedDetectionMode;
+            manager.requestedDetectionMode = PlaneDetectionMode.None;
+            manager.planePrefab = null;
+
+            SuppressTemplatePlaneUi();
+            manager.trackablesChanged.RemoveListener(OnPlanesChanged);
+            manager.trackablesChanged.AddListener(OnPlanesChanged);
+
+            foreach (ARPlane plane in manager.trackables)
+                HidePlaneVisuals(plane);
+
+            StopAllCoroutines();
+            StartCoroutine(EnforceHideRoutine());
+        }
+
+        public void ShowSurfacesForScanning(ARPlaneManager manager)
+        {
+            planeManager = manager;
+            hideSurfaces = false;
+            StopAllCoroutines();
+
+            manager.trackablesChanged.RemoveListener(OnPlanesChanged);
+
+            if (savedPlanePrefab != null)
+                manager.planePrefab = savedPlanePrefab;
+
+            manager.requestedDetectionMode = savedDetectionMode == PlaneDetectionMode.None
+                ? PlaneDetectionMode.Horizontal
+                : savedDetectionMode;
+
+            foreach (ARPlane plane in manager.trackables)
+                ShowPlaneVisuals(plane);
+        }
+
+        void OnDestroy()
+        {
+            if (planeManager != null)
+                planeManager.trackablesChanged.RemoveListener(OnPlanesChanged);
+        }
+
+        void OnPlanesChanged(ARTrackablesChangedEventArgs<ARPlane> changes)
+        {
+            if (!hideSurfaces)
+                return;
+
+            foreach (ARPlane added in changes.added)
+                HidePlaneVisuals(added);
+
+            foreach (ARPlane updated in changes.updated)
+                HidePlaneVisuals(updated);
+        }
+
+        IEnumerator EnforceHideRoutine()
+        {
+            float elapsed = 0f;
+            while (elapsed < EnforceHideSeconds && hideSurfaces && planeManager != null)
             {
-                MeshRenderer renderer = plane.GetComponent<MeshRenderer>();
-                if (renderer != null)
-                    renderer.enabled = true;
+                foreach (ARPlane plane in planeManager.trackables)
+                    HidePlaneVisuals(plane);
 
-                ARPlaneMeshVisualizer meshVisualizer = plane.GetComponent<ARPlaneMeshVisualizer>();
-                if (meshVisualizer != null)
-                    meshVisualizer.enabled = true;
-
-                ARPlaneMeshVisualizerFader fader = plane.GetComponent<ARPlaneMeshVisualizerFader>();
-                if (fader != null)
-                {
-                    fader.enabled = true;
-                    fader.visualizeSurfaces = true;
-                }
-
-                ARFeatheredPlaneMeshVisualizer feathered = plane.GetComponent<ARFeatheredPlaneMeshVisualizer>();
-                if (feathered != null)
-                    feathered.enabled = true;
+                elapsed += Time.deltaTime;
+                yield return null;
             }
         }
 
-        IEnumerator FadeRoutine(ARPlaneManager planeManager)
+        void LateUpdate()
         {
-            foreach (ARPlane plane in planeManager.trackables)
-                BeginPlaneFade(plane);
+            if (!hideSurfaces || planeManager == null)
+                return;
 
-            planeManager.planePrefab = null;
+            foreach (ARPlane plane in planeManager.trackables)
+                HidePlaneVisuals(plane);
+        }
+
+        static void SuppressTemplatePlaneUi()
+        {
+            foreach (ARTemplateMenuManager menu in Object.FindObjectsByType<ARTemplateMenuManager>(
+                         FindObjectsInactive.Include,
+                         FindObjectsSortMode.None))
+            {
+                menu.enabled = false;
+            }
+
+            foreach (GoalManager goal in Object.FindObjectsByType<GoalManager>(
+                         FindObjectsInactive.Include,
+                         FindObjectsSortMode.None))
+            {
+                goal.enabled = false;
+            }
 
             GameObject debugMenu = GameObject.Find("DebugMenu");
             if (debugMenu != null)
                 debugMenu.SetActive(false);
-
-            yield return new WaitForSeconds(FadeSeconds);
-
-            foreach (ARPlane plane in planeManager.trackables)
-                DisablePlaneVisuals(plane);
         }
 
-        static void BeginPlaneFade(ARPlane plane)
-        {
-            if (plane == null)
-                return;
-
-            ARFeatheredPlaneMeshVisualizer feathered = plane.GetComponent<ARFeatheredPlaneMeshVisualizer>();
-            if (feathered != null)
-                feathered.enabled = false;
-
-            MeshRenderer renderer = plane.GetComponent<MeshRenderer>();
-            ARPlaneMeshVisualizerFader fader = plane.GetComponent<ARPlaneMeshVisualizerFader>();
-            if (fader != null)
-            {
-                fader.fadeSpeed = 1.15f;
-                fader.visualizeSurfaces = false;
-            }
-            else if (renderer != null)
-            {
-                OrbitScoutSimpleRendererFade fade = renderer.GetComponent<OrbitScoutSimpleRendererFade>();
-                if (fade == null)
-                    fade = renderer.gameObject.AddComponent<OrbitScoutSimpleRendererFade>();
-                fade.Run(FadeSeconds);
-            }
-        }
-
-        static void DisablePlaneVisuals(ARPlane plane)
+        static void HidePlaneVisuals(ARPlane plane)
         {
             if (plane == null)
                 return;
@@ -127,62 +160,46 @@ namespace OrbitScout.Platform
             if (meshVisualizer != null)
                 meshVisualizer.enabled = false;
 
+            ARFeatheredPlaneMeshVisualizer feathered = plane.GetComponent<ARFeatheredPlaneMeshVisualizer>();
+            if (feathered != null)
+                feathered.enabled = false;
+
             ARPlaneMeshVisualizerFader fader = plane.GetComponent<ARPlaneMeshVisualizerFader>();
             if (fader != null)
+            {
                 fader.enabled = false;
+                fader.SetVisualsImmediate(0f);
+            }
 
-            MeshRenderer renderer = plane.GetComponent<MeshRenderer>();
-            if (renderer != null)
+            foreach (Renderer renderer in plane.GetComponentsInChildren<Renderer>(true))
                 renderer.enabled = false;
-        }
-    }
 
-    sealed class OrbitScoutSimpleRendererFade : MonoBehaviour
-    {
-        MeshRenderer targetRenderer;
-        Material material;
-        int alphaId;
-        float duration;
-        float elapsed;
-
-        public void Run(float seconds)
-        {
-            targetRenderer = GetComponent<MeshRenderer>();
-            if (targetRenderer == null)
-                return;
-
-            duration = seconds;
-            elapsed = 0f;
-            enabled = true;
-            material = targetRenderer.material;
-            alphaId = Shader.PropertyToID("_PlaneAlpha");
-            if (!material.HasProperty(alphaId))
-                alphaId = Shader.PropertyToID("_BaseColor");
+            foreach (LineRenderer line in plane.GetComponentsInChildren<LineRenderer>(true))
+                line.enabled = false;
         }
 
-        void Update()
+        static void ShowPlaneVisuals(ARPlane plane)
         {
-            if (material == null || duration <= 0f)
+            if (plane == null)
                 return;
 
-            elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / duration);
-            float alpha = 1f - t;
+            ARPlaneMeshVisualizer meshVisualizer = plane.GetComponent<ARPlaneMeshVisualizer>();
+            if (meshVisualizer != null)
+                meshVisualizer.enabled = true;
 
-            if (material.HasProperty("_PlaneAlpha"))
-                material.SetFloat("_PlaneAlpha", alpha);
-            else if (material.HasProperty("_BaseColor"))
+            ARFeatheredPlaneMeshVisualizer feathered = plane.GetComponent<ARFeatheredPlaneMeshVisualizer>();
+            if (feathered != null)
+                feathered.enabled = true;
+
+            ARPlaneMeshVisualizerFader fader = plane.GetComponent<ARPlaneMeshVisualizerFader>();
+            if (fader != null)
             {
-                Color color = material.GetColor("_BaseColor");
-                color.a = alpha;
-                material.SetColor("_BaseColor", color);
+                fader.enabled = true;
+                fader.visualizeSurfaces = true;
             }
 
-            if (t >= 1f)
-            {
-                targetRenderer.enabled = false;
-                enabled = false;
-            }
+            foreach (Renderer renderer in plane.GetComponentsInChildren<Renderer>(true))
+                renderer.enabled = true;
         }
     }
 }
