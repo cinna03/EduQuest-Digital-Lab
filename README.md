@@ -45,3 +45,18 @@ Or: **EduQuest → Editor Test → Open & Play Ready**
 ## Credits
 
 - Enemy models: [Quaternius — Easy Animated Enemy Pack](https://quaternius.itch.io/animated-easy-enemies) (CC0)
+
+---
+
+## Orbit Scout (Solar Quiz) — same repo
+
+Second AR experience in this Unity project: **planet quiz** with four levels, plane placement, and summative docs.
+
+| | |
+|--|--|
+| **Docs** | [docs/orbit-scout/README.md](docs/orbit-scout/README.md) |
+| **Editor scene** | `Assets/Scenes/OrbitScout_EditorTest.unity` |
+| **Phone AR scene** | `Assets/Scenes/SampleScene.unity` + **Orbit Scout → Setup AR In Active Scene** |
+| **Code** | `Assets/OrbitScout/` |
+
+Open **`/Users/cikirezi/EduQuest Digital Lab`** in Unity and GitHub Desktop (remote: `https://github.com/cinna03/EduQuest-Digital-Lab.git`).
