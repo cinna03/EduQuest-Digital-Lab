@@ -4,7 +4,7 @@ namespace EduQuest
 {
     /// <summary>
     /// Runtime performance defaults for the EduQuest vertical slice.
-    /// Documented in docs/PART2_GDD.md → Performance Considerations.
+    /// Documented in the repository README (performance / rendering section).
     /// </summary>
     public class LabPerformanceSettings : MonoBehaviour
     {
