@@ -58,7 +58,6 @@ namespace OrbitScout.View
 
             GameObject starfield = new GameObject(StarfieldName);
             ParticleSystem ps = starfield.AddComponent<ParticleSystem>();
-            starfield.AddComponent<ParticleSystemRenderer>();
 
             var main = ps.main;
             main.startLifetime = 120f;

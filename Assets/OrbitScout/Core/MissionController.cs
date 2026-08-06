@@ -295,9 +295,27 @@ namespace OrbitScout.Core
             {
                 exploded.Add(planetId);
                 OnFeedback?.Invoke(planetId + " couldn't take more mistakes — lost!");
+                RemoveRemainingQuestionsForPlanet(planetId);
             }
 
             RefreshPlanetVisual(planetId);
+        }
+
+        /// <summary>
+        /// Level 2: once a planet is destroyed, drop any not-yet-asked clues for that planet.
+        /// </summary>
+        void RemoveRemainingQuestionsForPlanet(PlanetId planetId)
+        {
+            if (factRun == null || ActiveLevel != LevelId.Level2)
+                return;
+
+            for (int i = factRun.Count - 1; i > QuestionIndex; i--)
+            {
+                if (factRun[i].Planet == planetId)
+                    factRun.RemoveAt(i);
+            }
+
+            TotalQuestions = factRun.Count;
         }
 
         void RefreshPlanetVisual(PlanetId id)
@@ -317,6 +335,14 @@ namespace OrbitScout.Core
 
         bool HandleMultiTap(PlanetId planetId, bool failOnWrong, bool showCount)
         {
+            // Level 4 empty clue: any planet tap is wrong; correct move is to wait out the timer.
+            if (ActiveLevel == LevelId.Level4 && multiRequired.Count == 0)
+            {
+                PlanetRegistry.Get(planetId)?.FlashWrong();
+                FailMultiQuestion("No planet matched that clue — you shouldn't tap any.");
+                return false;
+            }
+
             if (multiRequired.Contains(planetId))
             {
                 if (multiSelected.Contains(planetId))
@@ -335,7 +361,10 @@ namespace OrbitScout.Core
             if (failOnWrong)
             {
                 PlanetRegistry.Get(planetId)?.FlashWrong();
-                FailMultiQuestion("Wrong pick — question failed.");
+                // Level 4: wrong pick fails this question but the run continues through all 5.
+                FailMultiQuestion(ActiveLevel == LevelId.Level4
+                    ? "Wrong pick — that question failed. Next clue coming…"
+                    : "Wrong pick — question failed.");
                 return false;
             }
 
@@ -366,6 +395,12 @@ namespace OrbitScout.Core
 
             if (ActiveLevel == LevelId.Level1 || ActiveLevel == LevelId.Level2)
             {
+                if (ActiveLevel == LevelId.Level2)
+                {
+                    while (QuestionIndex < factRun.Count && exploded.Contains(factRun[QuestionIndex].Planet))
+                        QuestionIndex++;
+                }
+
                 if (QuestionIndex >= factRun.Count)
                 {
                     FinishLevel();
@@ -390,8 +425,7 @@ namespace OrbitScout.Core
                 foreach (PlanetId p in q.Planets)
                     multiRequired.Add(p);
 
-                string sub = "Find " + multiRequired.Count + " planet(s). One mistake fails this question.";
-                OnQuestionChanged?.Invoke("Q " + (QuestionIndex + 1) + "/" + TotalQuestions, q.Prompt + "\n" + sub);
+                OnQuestionChanged?.Invoke("Q " + (QuestionIndex + 1) + "/" + TotalQuestions, q.Prompt);
                 return;
             }
 
@@ -419,9 +453,9 @@ namespace OrbitScout.Core
             level4PhaseTimer = 10f;
             OnLevel4PhaseChanged?.Invoke(Level4Phase.Reading);
             OnQuestionChanged?.Invoke(
-                "Q " + (level4QuestionIndex + 1) + "/" + TotalQuestions + " — READ",
+                "Q " + (level4QuestionIndex + 1) + "/" + TotalQuestions + " · READ",
                 q.Prompt);
-            OnFeedback?.Invoke("Read the clue. Answer window opens in 10 seconds.");
+            OnFeedback?.Invoke(string.Empty);
         }
 
         void AdvanceLevel4Phase()
@@ -431,15 +465,20 @@ namespace OrbitScout.Core
                 Level4Phase = Level4Phase.Answering;
                 level4PhaseTimer = 10f;
                 OnLevel4PhaseChanged?.Invoke(Level4Phase.Answering);
-                OnFeedback?.Invoke("Answer now! Tap planets or 'No match' if none apply.");
+                OnQuestionChanged?.Invoke(
+                    "Q " + (level4QuestionIndex + 1) + "/" + TotalQuestions + " · ANSWER",
+                    multiRun[level4QuestionIndex].Prompt);
+                OnFeedback?.Invoke(string.Empty);
                 return;
             }
 
             if (Level4Phase == Level4Phase.Answering)
             {
-                FailMultiQuestion("Time's up on that question.");
-                Level4Phase = Level4Phase.None;
-                OnLevel4PhaseChanged?.Invoke(Level4Phase.None);
+                // Empty-answer questions: not tapping any planet is the correct response.
+                if (multiRequired.Count == 0)
+                    CompleteMultiQuestion(true);
+                else
+                    FailMultiQuestion("Time's up — you needed to tap the matching planet(s).");
             }
         }
 

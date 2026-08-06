@@ -18,9 +18,9 @@ public static class OrbitScoutEditorSceneBuilder
 
 {
 
-    const string ScenePath = "Assets/Scenes/OrbitScout_EditorTest.unity";
+    const string ScenePath = OrbitScoutGameSceneSync.EditorTestScenePath;
 
-    const string ArScenePath = "Assets/Scenes/SampleScene.unity";
+    const string ArScenePath = OrbitScoutGameSceneSync.SampleScenePath;
 
 
 
@@ -36,7 +36,10 @@ public static class OrbitScoutEditorSceneBuilder
 
         GameObject systems = CreateOrbitScoutRoot(SolarPlayMode.EditorDesktop);
 
-
+        EnsureMainCameraForUiEditing();
+        OrbitScoutHudEditorBuilder.UpgradeHudPrefabAsset();
+        OrbitScoutHudEditorBuilder.EnsureHudInScene(replaceExisting: false, selectHud: false);
+        OrbitScoutUiEditSceneOrganizer.PrepareSceneForUiHierarchyEditing(frameMenu: false);
 
         if (!AssetDatabase.IsValidFolder("Assets/Scenes"))
 
@@ -48,7 +51,10 @@ public static class OrbitScoutEditorSceneBuilder
 
         AssetDatabase.SaveAssets();
 
+        OrbitScoutGameSceneSync.ApplyHudAndMenuBackgroundInScene(ArScenePath, saveScene: true, out _);
 
+        if (!string.IsNullOrEmpty(ScenePath))
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
 
         EditorUtility.DisplayDialog(
 
@@ -56,7 +62,9 @@ public static class OrbitScoutEditorSceneBuilder
 
             "Editor test scene saved to:\n" + ScenePath +
 
-            "\n\nPress Play → Start Mission → click planets.",
+            "\n\nUse Hierarchy: UI (Edit Here) → OrbitScoutHud.\n" +
+            "Orbit Scout → UI Editing for panel shortcuts.\n" +
+            "SampleScene was updated to match.",
 
             "OK");
 
@@ -112,7 +120,13 @@ public static class OrbitScoutEditorSceneBuilder
 
         OrbitScoutArTemplateSuppress.Apply();
 
+        EnsureMainCameraForUiEditing();
+        OrbitScoutHudEditorBuilder.UpgradeHudPrefabAsset();
+        OrbitScoutHudEditorBuilder.EnsureHudInScene(replaceExisting: false, selectHud: false);
 
+        EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+        OrbitScoutGameSceneSync.SyncOtherGameSceneFrom(ArScenePath);
+        EditorSceneManager.OpenScene(ArScenePath, OpenSceneMode.Single);
 
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
 
@@ -120,7 +134,8 @@ public static class OrbitScoutEditorSceneBuilder
 
             "Orbit Scout",
 
-            "AR ready.\n\nBuild to phone → SampleScene → Start Mission → tap floor to place.",
+            "AR ready.\n\nSampleScene saved. OrbitScout_EditorTest was updated to match.\n" +
+            "Build to phone → SampleScene → Start Mission → tap floor to place.",
 
             "OK");
 
@@ -158,15 +173,49 @@ public static class OrbitScoutEditorSceneBuilder
 
         ConfigureOrbitScout(systems, mode);
 
+        EnsureMainCameraForUiEditing();
+        OrbitScoutHudEditorBuilder.UpgradeHudPrefabAsset();
+        OrbitScoutHudEditorBuilder.EnsureHudInScene(replaceExisting: false, selectHud: false);
 
+        string activePath = UnityEngine.SceneManagement.SceneManager.GetActiveScene().path;
+        EditorSceneManager.SaveOpenScenes();
+        if (activePath == OrbitScoutGameSceneSync.SampleScenePath
+            || activePath == OrbitScoutGameSceneSync.EditorTestScenePath)
+            OrbitScoutGameSceneSync.SyncOtherGameSceneFrom(activePath);
 
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
 
-        EditorUtility.DisplayDialog("Orbit Scout", "OrbitScout object updated.", "OK");
+        EditorUtility.DisplayDialog("Orbit Scout", "OrbitScout object updated.\nThe other game scene was synced to match.", "OK");
 
     }
 
 
+
+    public static void EnsureMainCameraForUiEditing()
+    {
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            cam = Object.FindAnyObjectByType<Camera>();
+            if (cam != null && cam.gameObject.tag != "MainCamera")
+                cam.gameObject.tag = "MainCamera";
+        }
+
+        if (cam == null)
+        {
+            GameObject camObject = new GameObject("Main Camera");
+            camObject.tag = "MainCamera";
+            cam = camObject.AddComponent<Camera>();
+            camObject.AddComponent<AudioListener>();
+            cam.transform.position = new Vector3(0f, 0f, -10f);
+            cam.transform.rotation = Quaternion.identity;
+        }
+
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = new Color(0.02f, 0.03f, 0.06f, 1f);
+        cam.nearClipPlane = 0.1f;
+        cam.farClipPlane = 1000f;
+    }
 
     static GameObject CreateOrbitScoutRoot(SolarPlayMode mode)
 

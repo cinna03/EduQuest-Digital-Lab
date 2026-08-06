@@ -1,179 +1,198 @@
-# Orbit Scout — demo video script (no live presentation)
+# Solar Quiz — Demo & code walkthrough video script  
+### Replaces live presentation — every exam question answered on camera
 
-Record **one video** (recommended **8–12 minutes**) that replaces the live presentation. Use **voiceover** or **on-screen text cards** for the technical sections. Show the **Game view** or **device screen** for gameplay; switch to **Unity Editor** for code, Profiler, and Project Settings.
+Record **one video (recommended 10–12 minutes)**. There is **no live presentation**, so this recording must answer **all** rubric presentation questions out loud (use the **on-screen question titles** below so graders cannot miss them).
 
 **Before recording**
 
-- [ ] `OrbitScout_EditorTest` works: Play → Start Mission → hover → tap → hint → finish  
-- [ ] `SampleScene` saved after **Orbit Scout → Setup AR In Active Scene**  
-- [ ] Profiler open in second monitor (or record Editor segments separately and edit)  
-- [ ] Fill FPS numbers in `docs/GDD_PERFORMANCE.md` and match what you say in the video  
+- [ ] `OrbitScout_EditorTest`: Play → menu → level → hover → tap wrong → tap correct → end screen  
+- [ ] `SampleScene` saved after **Orbit Scout → Setup AR In Active Scene** (or show phone AR recording)  
+- [ ] Profiler ready (CPU + Rendering modules)  
+- [ ] FPS numbers filled in GDD Performance section — **say the same numbers** in the video  
+- [ ] GitHub URL + GDD URL ready for title/outro cards  
 
 ---
 
-## Suggested structure (copy this order)
+## Question → timestamp map (must hit all four)
 
-| Time | Section | What graders see |
-|------|---------|-------------------|
-| 0:00–0:45 | Intro + GDD alignment | Title, learning goal, matches GDD |
-| 0:45–3:30 | Core gameplay (Editor) | Interactive, immersive, polished |
-| 3:30–5:30 | AR on device (or Editor AR rig) | AR/VR interactions |
-| 5:30–7:00 | Code & architecture | OOP + patterns |
-| 7:00–8:30 | Profiler + performance | Roadblock + techniques + FPS |
-| 8:30–9:30 | Scope not achieved | Honest GDD gaps |
-| 9:30–10:00 | Outro | Repo, GDD link, thank you |
+| # | Presentation question | Video section | Approx. time |
+|---|------------------------|---------------|--------------|
+| **Q1** | What OOP principles and design patterns did you use? | Code walkthrough | ~5:30 |
+| **Q2** | Demonstrate Unity Profiler to identify a performance roadblock | Profiler segment | ~7:00 |
+| **Q3** | Which part of the earlier scope were you not able to achieve? | Scope gaps | ~8:45 |
+| **Q4** | What AR/VR specific interactions were included? | AR segment | ~3:30 |
 
----
-
-## 0:00 — Title card (on screen)
-
-**Text:**  
-**Orbit Scout** — Educational AR Solar System Quiz  
-Mwiza Cannelle · Unity 6000.5.0f1  
-GitHub: `[your public repo URL]`
-
-**Say (or text):**  
-“This is my AR vertical slice for the summative assignment. The experience matches my Game Design Document: a timed, clue-based quiz where players identify planets in a tabletop solar system, with scoring, learning facts, and AR placement on a real surface.”
+Also cover without a numbered “Q”: gameplay/GDD alignment, GitHub/README, performance techniques + **FPS benchmark**.
 
 ---
 
-## 0:45 — GDD alignment (30 s)
+## Suggested timeline
 
-**Show:** GDD open in browser/Docs (objectives paragraph only — blur personal info if needed).
+| Time | Section | Rubric / Q |
+|------|---------|------------|
+| 0:00–0:50 | Title + GDD alignment | Implementation |
+| 0:50–3:20 | Editor gameplay | Implementation / interactivity |
+| 3:20–5:20 | **Q4 — AR interactions** | AR + immersion |
+| 5:20–7:00 | **Q1 — OOP & patterns** | Code quality |
+| 7:00–8:40 | **Q2 — Profiler + performance** | Performance (5 pts) |
+| 8:40–9:40 | **Q3 — Scope not achieved** | Honesty / GDD |
+| 9:40–10:30 | GitHub README + outro | Repo docs |
+
+---
+
+## 0:00 — Title card
+
+**On screen:**  
+**Solar Quiz** — Educational AR Solar System Quiz  
+Cannelle Mwiza · Unity 6000.5.0f1  
+GitHub: `[URL]` · GDD: `[URL]`  
+*This video replaces the live presentation and answers all evaluation questions.*
 
 **Say:**  
-“My GDD goals were: make space science interactive, use AR to place content in the learner’s environment, and combine game feel—timer, streaks, stars—with short factual feedback. Orbit Scout implements that loop: read a clue, find the planet, get a fact, complete the mission for a star rating.”
+“Hi, I’m Cannelle Mwiza. This is my summative AR vertical slice, **Solar Quiz**. It matches my Game Design Document: place a tabletop solar system in the learner’s space and answer planet clues by tapping 3D planets. Because there is no live presentation, this walkthrough also answers the course evaluation questions on OOP, Profiler, scope gaps, and AR interactions.”
 
 ---
 
-## 1:00 — Editor gameplay walkthrough (~2.5 min)
+## 0:50 — GDD alignment + editor gameplay (~2.5 min)
 
-**Show:** `OrbitScout_EditorTest` → Play.
+**Show:** GDD objectives (brief) → then `OrbitScout_EditorTest` → Play.
 
-1. **Start Mission** — menu and instructions.  
-2. Read **Question 1/6** clue aloud briefly.  
-3. **Hover** a planet — name pill appears.  
-4. **Tap wrong** once (optional) — penalty message / red flash.  
-5. **Tap correct** — green flash, fact line, score/streak.  
-6. Press **Hint (1)** — read hint text.  
-7. Finish mission (or skip ahead if long) — **Mission Over**, score, **stars**, **Play Again** / **Main Menu**.
+**Do:**
+1. Main menu → **Play** → level select → start **Level 1** (or another short level).  
+2. Read one clue aloud.  
+3. **Hover** a planet — name label.  
+4. **Wrong tap** once — show feedback.  
+5. **Correct tap** — score / feedback.  
+6. Reach **end screen** (or show end after a few questions if long).
 
 **Say:**  
-“Interactions are tap-to-answer on 3D planets, hover labels so players know what they’re selecting, one hint per mission, wrong answers cost time, and streaks reward consecutive correct answers. The HUD is driven by game events, not hard-wired in every script.”
+“The GDD core loop is menu, mission select, optional AR place, clue, tap planet, feedback, then results. In the editor I can test the full quiz without a phone. Interactions are spatial: hover to identify, tap to answer, with UI driven by game events.”
 
 ---
 
-## 3:30 — AR segment (~2 min) — **required for AR/VR criterion**
+## 3:20 — Q4 card + AR segment (~2 min)
 
-**Preferred:** Phone/tablet recording (screen mirror or camera over shoulder).
+**On screen big title (3 seconds):**  
+**Q4 — What AR/VR specific interactions were included?**
 
-**Fallback:** Unity Editor with `SampleScene` + device simulator — say clearly: “Device build; this segment shows the same flow on phone.”
+**Show:** Phone recording preferred (or SampleScene on device / clear phone mirror).
 
-**Show:**
+**Do:**
+1. Launch → choose mission.  
+2. Show **plane detection** (move device over floor/table).  
+3. **Tap** to **place** solar system.  
+4. One clue → **tap a planet**.  
+5. Move around the placed system (immersion).
 
-1. App launch → **Start Mission**.  
-2. **Move device** — planes / surface detection visible.  
-3. **Tap floor/table** — solar system appears at tabletop scale.  
-4. One full question: clue → hover/tap → feedback.  
-5. Briefly **walk around** the anchor (immersion).
-
-**Say — AR/VR interactions (answers presentation question 4):**
-
-“In AR I used **plane detection** so the app finds real horizontal surfaces. **Raycast placement** anchors the solar system on the user’s table or floor. The player uses **6-DoF viewing** to look around the model. **Touch input** selects planets for the quiz, and **touch-with-hover labels** show planet names while the finger is over a sphere. Content is **tabletop-scaled** so it stays comfortable and readable in arm’s reach.”
-
----
-
-## 5:30 — Code quality: OOP & patterns (~1.5 min)
-
-**Show:** Project window → `Assets/OrbitScout/` folders.
-
-**Say — presentation question 1:**
-
-“I organized code by responsibility:
-
-- **Core** — `MissionController` owns rules, timer, score, hints; `SolarQuizBank` holds data. That’s **single responsibility** and **encapsulation**—UI doesn’t mutate score directly.  
-- **View** — `SolarSystemView` builds the 3D scene; `PlanetBody` handles visuals.  
-- **UI** — `MissionHud` only displays and forwards button clicks.  
-- **Tapping / Platform** — input and AR bootstrap stay separate from quiz rules.
-
-**Patterns:**  
-- **Observer** — `MissionController` raises events like `OnQuestionChanged` and `OnAnswerCorrect`; `MissionHud` subscribes. Adding UI doesn’t require changing mission logic.  
-- **State flow** — Menu → optional **AR placement** → **Playing** → **End screen**.  
-- **Factory-style builder** — `SolarSystemView.Build()` creates the whole system at runtime from data specs.
-
-This follows **SOLID** ideas in practice: one place for rules, one for presentation, dependencies pointing inward toward Core.”
-
-**Show (5–10 s each):**  
-`MissionController.cs` (events + `SubmitPlanet`) → `MissionHud.cs` (subscriptions) → `SolarSystemView.cs` (Build + shared material).
+**Say (read clearly):**  
+“Answering Q4 — AR/VR interactions in Solar Quiz:  
+First, **plane detection** with AR Foundation’s plane manager finds real horizontal surfaces.  
+Second, **raycast placement** via the raycast manager and my `ArSessionBridge` lets the player tap the plane to anchor the solar system.  
+Third, the experience is **world-space** and **tabletop-scaled** so you can walk around it.  
+Fourth, **touch input** selects planets for answers; in editor I also use hover labels for readability.  
+Fifth, during play the **live camera** stays visible behind a translucent HUD, while menus use a solid backdrop so UI stays readable.  
+Those are the AR-specific interactions for this vertical slice.”
 
 ---
 
-## 7:00 — Profiler & performance (~1.5 min)
+## 5:20 — Q1 card + code walkthrough (~1.5–2 min)
 
-**Show:** Play mode → **Window → Analysis → Profiler** → record 10 s during orbiting planets + taps.
+**On screen big title:**  
+**Q1 — What OOP principles and design patterns did you use?**
 
-**Say — presentation question 2 + performance rubric:**
+**Show:** `Assets/OrbitScout/` folders, then briefly open:
+1. `MissionController.cs` — events / level start  
+2. `MissionHud.cs` — subscribe to events  
+3. `SolarSystemView.cs` — `Build()` + shared material  
 
-“I used the **Unity Profiler** during active gameplay. In **CPU**, most time stays on Main Thread scripts and UI; nothing spikes every frame from per-planet material creation because planets share one instanced material with **MaterialPropertyBlock** colors in `SolarSystemView`—that’s **GPU instancing / batching awareness**. In **Rendering**, draw calls stay low for primitive planets.
+**Say (read clearly):**  
+“Answering Q1 — OOP and design patterns.  
 
-**FPS benchmark:** In the Editor test scene I measured **[SAY YOUR NUMBER, e.g. ~60] FPS**. On **[device model]** in AR I measured **[SAY YOUR NUMBER, e.g. ~35] FPS** during placement and quiz—documented in my GDD Performance section.
+**Single responsibility:** `MissionController` owns rules, score, and timers. `MissionHud` only shows UI and forwards buttons. `SolarSystemView` builds the 3D solar system. `PlanetTapInput` handles picking. `SolarBootstrap` chooses editor versus AR and starts the session.  
 
-**Other techniques:** lightweight **primitive meshes**, no heavy textures, **tabletop scale** in AR, **IL2CPP** on mobile builds in Player Settings. I did **not** use **occlusion culling** because the whole solar system is small and always visible—setup cost isn’t justified. **LOD** isn’t needed on low-poly spheres. For **mipmap / texture awareness**, UI uses TextMesh Pro and default assets that import with mipmaps; planets use solid colors to avoid texture memory and sampling cost.”
+**Encapsulation:** UI does not write score directly; it reacts to controller events.  
 
-**Show:** Profiler CPU graph + Rendering; optional **Player Settings → IL2CPP** screenshot.
+**Observer pattern:** `MissionController` raises events such as `OnQuestionChanged`, `OnScoreChanged`, and `OnLevelEnded`. The HUD subscribes, so I can change UI without rewriting mission logic.  
 
----
+**Factory-style construction:** `SolarSystemView.Build` creates the full tabletop system from data at runtime.  
 
-## 8:30 — Scope not achieved (~1 min)
+**Clear state flow:** Menu → level select → optional AR placement → playing → end screen.  
 
-**Say — presentation question 3:**
-
-“From my original GDD scope, these were **not** fully delivered in this vertical slice:
-
-- **Learn mode** with paused orbits and free exploration without a timer.  
-- **High-fidelity planet models or NASA textures**—I used procedural primitives for speed and performance.  
-- **Advanced AR features** like image tracking or sky questions pointing at real clouds.  
-- **Audio** for correct/wrong feedback.  
-- Trimming unused **template sample packages** from the repo for a minimal build.
-
-The **core summative loop**—AR placement, timed quiz, education facts, scoring, and stars—is complete and testable.”
-
-Adjust bullets if your GDD listed different features—**keep what you say identical to your updated GDD**.
+Together that follows SOLID ideas in practice: modular folders, one owner per concern, and dependencies pointing toward Core.”
 
 ---
 
-## 9:30 — Outro (30 s)
+## 7:00 — Q2 card + Profiler & performance (~1.5–2 min)
 
-**Show:** README on GitHub (quick scroll: Quick start, AR, Architecture).
+**On screen big title:**  
+**Q2 — Demonstrate the Unity Profiler to identify a performance roadblock**
+
+**Show:** Enter Play → **Window → Analysis → Profiler** → capture ~10 seconds while planets orbit and you tap. Switch **CPU** then **Rendering**. Optionally flash **Player Settings → Scripting Backend → IL2CPP**.
+
+**Say (read clearly):**  
+“Answering Q2 — I am demonstrating the Unity Profiler during an active mission.  
+
+Looking at **CPU**, time is spent on the main thread for scripts, UI, and the scene update. A potential roadblock in a naive design would be creating a unique material per planet every frame or every spawn, which increases cost and break batching.  
+
+In Solar Quiz I avoided that: in `SolarSystemView` all planet bodies share **one URP material** with **GPU instancing** enabled, and each planet gets its color through a **MaterialPropertyBlock**. That is batching awareness and fewer material variants.  
+
+On **Rendering**, draw cost stays manageable because planets are **lightweight primitive meshes** with solid colors—no heavy NASA textures in this slice.  
+
+**FPS benchmark:** In the Editor test scene I measured **[FILL, e.g. ~60] FPS**. On **[device name]** in AR I measured **[FILL] FPS** during placement and quiz. Those numbers are written in my GDD Performance Considerations section with Profiler screenshots.  
+
+Other techniques: small **tabletop scale** in AR, and **IL2CPP** for mobile builds. I did **not** use **occlusion culling**—the solar system is small and always in view, so the setup cost is not justified. **LOD** is unnecessary for low-poly spheres. UI fonts and default assets use normal import settings with mipmaps where textures exist; planets themselves avoid texture sampling cost by using colors.”
+
+---
+
+## 8:40 — Q3 card + scope not achieved (~1 min)
+
+**On screen big title:**  
+**Q3 — Which part of the scope identified earlier were you not able to achieve?**
+
+**Say (must match your GDD out-of-scope list):**  
+“Answering Q3 — from my ideation and GDD, these were **not** achieved in this trimester’s vertical slice:  
+
+- Photoreal **NASA textures** and high-fidelity planet models  
+- **Voice narration** / rich audio feedback  
+- **Multiplayer**  
+- Full **EduQuest** multi-subject product and **LMS / Canvas integration**  
+- **App Store** release and a full **accessibility** audit  
+
+What **is** complete is the committed core: AR plane placement, four mission styles, tap-to-answer on 3D planets, menu-to-results UI, editor testing, and performance-aware materials. The cut items remain for capstone or EduQuest expansion.”
+
+---
+
+## 9:40 — GitHub / README + outro (~45 s)
+
+**Show:** Public GitHub → open **README.md** → scroll Quick start (editor) + AR on device.
 
 **Say:**  
-“Source is public on GitHub with README instructions for editor test and AR SampleScene setup. The GDD link includes an updated **Performance Considerations** section with Profiler screenshots and FPS tables. Thanks for watching.”
+“The public GitHub repository includes a `.gitignore` that excludes Library and build folders, and a README that explains how to run the editor test scene and how to set up SampleScene for AR on a phone. My submission document links this repo, this video, and the GDD with the Performance section. Thank you for watching.”
 
-**On screen:** Repo URL · Video already submitted · GDD URL
+**On screen:**  
+Repo URL · Video URL · GDD URL  
 
 ---
 
-## Rubric coverage checklist (verify before upload)
+## Final checklist before upload
 
-| Rubric area | Covered in video? |
-|-------------|-------------------|
-| Functionality & GDD alignment | Intro + gameplay + AR |
-| Interactivity & immersion | Quiz, hover, streaks, walk-around AR |
-| Code quality | Section 5:30 folders + patterns |
-| GitHub/README | Outro + optional README scroll |
-| Video quality | Follow script; stable audio |
-| Performance | Profiler + 2+ techniques + **spoken FPS** |
-| All 4 presentation questions | Sections 3:30, 5:30, 7:00, 8:30 |
+| Must be audible / visible | Done? |
+|---------------------------|-------|
+| Q1 OOP + patterns spoken with on-screen title | ☐ |
+| Q2 Profiler shown + roadblock explained + FPS spoken | ☐ |
+| Q3 Scope gaps spoken (match GDD) | ☐ |
+| Q4 AR interactions spoken with on-screen title | ☐ |
+| Gameplay + AR placement shown | ☐ |
+| README / GitHub shown | ☐ |
+| Performance techniques ≥ 2 named (instancing + MPB, etc.) | ☐ |
 
 ---
 
 ## Recording tips
 
-- **1080p**, landscape for Editor; portrait OK for phone AR if you label it.  
-- If nervous on voiceover: record gameplay first, then record narration while watching the capture.  
-- **One wrong answer + one hint** in editor proves feedback systems.  
-- Do **not** skip AR entirely—graders need to see plane placement or a clear device recording.
+- Put **Q1–Q4 titles on screen** even if you ad-lib slightly — graders scan for those answers.  
+- If voice shakes: record gameplay silent first, then narrate over it.  
+- Do **not** skip AR or Profiler — those map directly to Q4 and Q2.  
+- Upload YouTube **unlisted** or Drive with link access for graders.
 
----
-
-*After recording, upload to YouTube (unlisted/public) or course portal and paste the link in your submission document next to the GDD and GitHub URLs.*
+*Paste the video link into `docs/SUMMATIVE_SUBMISSION_HUB.md` / your Canvas submission Doc next to GitHub and GDD.*

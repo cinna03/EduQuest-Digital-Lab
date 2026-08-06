@@ -9,13 +9,24 @@ namespace OrbitScout.UI
 {
     public class MissionHud : MonoBehaviour
     {
-        Canvas canvas;
+        const string ResourcesHudPath = "OrbitScout/OrbitScoutHud";
+
+        [Header("Editable UI (Hierarchy / Prefab)")]
+        [Tooltip("Assign OrbitScoutHud from the scene, or run Orbit Scout → Create Editable HUD In Scene.")]
+        [SerializeField] OrbitScoutHudView hudView;
+
+        [SerializeField] GameObject hudPrefab;
+
         GameObject menuPanel;
+        GameObject menuScoresPanel;
         GameObject levelSelectPanel;
+        GameObject briefingPanel;
         GameObject playPanel;
         GameObject endPanel;
 
         TMP_Text menuScoresText;
+        TMP_Text briefingTitleText;
+        TMP_Text briefingBodyText;
         TMP_Text questionText;
         TMP_Text scoreText;
         TMP_Text timerText;
@@ -25,12 +36,20 @@ namespace OrbitScout.UI
         TMP_Text levelSelectStatusText;
 
         Button noneMatchButton;
+        Button continueNextButton;
+        Button briefingStartButton;
+        Button briefingBackButton;
+
         LevelId pendingLevel;
+        LevelId? continueTargetLevel;
+        OrbitScoutResultsPanel resultsPanel;
 
         void Awake()
         {
-            GameProgress.UnlockAllLevelsForTesting();
-            BuildUi();
+            GameProgress.UseNormalProgression();
+            EnsureHudView();
+            EnsureBriefingAndContinueUi();
+            WireButtonListeners();
             ShowMainMenu();
         }
 
@@ -41,18 +60,251 @@ namespace OrbitScout.UI
             SyncArCameraToActivePanel();
         }
 
-        void SyncArCameraToActivePanel()
+        void EnsureHudView()
         {
-            if (playPanel != null && playPanel.activeSelf)
-                OrbitScoutArCameraPresentation.ApplyLevelPresentation();
+            if (hudView == null)
+                hudView = GetComponentInChildren<OrbitScoutHudView>(true);
+
+            if (hudView == null)
+                hudView = FindAnyObjectByType<OrbitScoutHudView>(FindObjectsInactive.Include);
+
+            if (hudView != null)
+            {
+                CacheReferencesFromView();
+                ApplyStartMenuPillButtons();
+                return;
+            }
+
+            GameObject prefab = hudPrefab;
+            if (prefab == null)
+                prefab = Resources.Load<GameObject>(ResourcesHudPath);
+
+            if (prefab != null)
+            {
+                GameObject instance = Instantiate(prefab, transform);
+                instance.name = "OrbitScoutHud";
+                hudView = instance.GetComponent<OrbitScoutHudView>();
+                CacheReferencesFromView();
+                ApplyStartMenuPillButtons();
+                return;
+            }
+
+            Debug.LogError(
+                "Orbit Scout: no OrbitScoutHud in this scene. " +
+                "Add one under OrbitScout (Orbit Scout → Create Editable HUD In Scene) and save the scene.");
+            enabled = false;
+        }
+
+        void CacheReferencesFromView()
+        {
+            menuPanel = hudView.menuPanel;
+            menuScoresPanel = hudView.menuScoresPanel;
+            levelSelectPanel = hudView.levelSelectPanel;
+            briefingPanel = hudView.briefingPanel;
+            playPanel = hudView.playPanel;
+            endPanel = hudView.endPanel;
+            menuScoresText = hudView.menuScoresText;
+            briefingTitleText = hudView.briefingTitleText;
+            briefingBodyText = hudView.briefingBodyText;
+            briefingStartButton = hudView.briefingStartButton;
+            briefingBackButton = hudView.briefingBackButton;
+            questionText = hudView.questionText;
+            scoreText = hudView.scoreText;
+            timerText = hudView.timerText;
+            feedbackText = hudView.feedbackText;
+            streakText = hudView.streakText;
+            endBodyText = hudView.endBodyText;
+            continueNextButton = hudView.continueNextButton;
+            levelSelectStatusText = hudView.levelSelectStatusText;
+            noneMatchButton = hudView.noneMatchButton;
+        }
+
+        void ApplyStartMenuPillButtons()
+        {
+            if (hudView == null)
+                return;
+
+            OrbitScoutMenuDecor.EnsureOnMenuPanel(hudView.menuPanel);
+            OrbitScoutLevelMapController.EnsureOnPanel(hudView.levelSelectPanel);
+            OrbitScoutWalkthroughUi.EnsureOnBriefingPanel(hudView.briefingPanel, hudView.briefingTitleText, hudView.briefingBodyText);
+            OrbitScoutUiTheme.StyleWalkthroughTexts(hudView.briefingTitleText, hudView.briefingBodyText);
+            OrbitScoutUiTheme.StyleMenuChromeTexts(hudView.menuPanel, hudView.levelSelectPanel);
+            resultsPanel = OrbitScoutResultsPanel.EnsureOnEndPanel(hudView.endPanel);
+            OrbitScoutUiTheme.ApplyGlassButtons(hudView);
+            OrbitScoutUiTheme.StylePlayHudTexts(
+                hudView.streakText,
+                hudView.questionText,
+                hudView.scoreText,
+                hudView.timerText,
+                hudView.feedbackText);
+            LayoutEndScreenButtons();
+        }
+
+        void LayoutEndScreenButtons()
+        {
+            if (hudView == null)
+                return;
+
+            PlaceButton(hudView.continueNextButton, 0.22f);
+            PlaceButton(hudView.retryLevelButton, 0.14f);
+            PlaceButton(hudView.endLevelSelectButton, 0.08f);
+            PlaceButton(hudView.endMainMenuButton, 0.03f);
+        }
+
+        static void PlaceButton(Button button, float anchorY)
+        {
+            if (button == null)
+                return;
+            RectTransform rect = button.GetComponent<RectTransform>();
+            if (rect == null)
+                return;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, anchorY);
+            rect.anchoredPosition = Vector2.zero;
+        }
+
+        void EnsureBriefingAndContinueUi()
+        {
+            if (hudView == null)
+                return;
+
+            Transform canvas = hudView.transform;
+
+            if (briefingPanel == null)
+            {
+                briefingPanel = CreateRuntimePanel(canvas, "BriefingPanel");
+
+                briefingTitleText = CreateRuntimeLabel(briefingPanel.transform, "BriefingTitle", "Mission Briefing", 32, new Vector2(0.5f, 0.82f), 420f, 90f);
+                briefingBodyText = CreateRuntimeLabel(briefingPanel.transform, "BriefingBody", "", 22, new Vector2(0.5f, 0.52f), 400f, 340f);
+                briefingBodyText.alignment = TextAlignmentOptions.TopLeft;
+
+                briefingStartButton = CreateRuntimeButton(briefingPanel.transform, "BriefingStart", "Start Mission", new Vector2(0.5f, 0.14f), true);
+                briefingBackButton = CreateRuntimeButton(briefingPanel.transform, "BriefingBack", "Back", new Vector2(0.5f, 0.05f), false);
+
+                hudView.briefingPanel = briefingPanel;
+                hudView.briefingTitleText = briefingTitleText;
+                hudView.briefingBodyText = briefingBodyText;
+                hudView.briefingStartButton = briefingStartButton;
+                hudView.briefingBackButton = briefingBackButton;
+                OrbitScoutWalkthroughUi.EnsureOnBriefingPanel(briefingPanel, briefingTitleText, briefingBodyText);
+                briefingPanel.SetActive(false);
+            }
             else
-                OrbitScoutArCameraPresentation.ApplyMenuPresentation();
+            {
+                OrbitScoutWalkthroughUi.EnsureOnBriefingPanel(briefingPanel, briefingTitleText, briefingBodyText);
+            }
+
+            if (endPanel != null)
+                resultsPanel = OrbitScoutResultsPanel.EnsureOnEndPanel(endPanel);
+
+            if (continueNextButton == null && endPanel != null)
+            {
+                continueNextButton = CreateRuntimeButton(endPanel.transform, "ContinueNextButton", "Continue to Next Level", new Vector2(0.5f, 0.22f), true);
+                hudView.continueNextButton = continueNextButton;
+                continueNextButton.gameObject.SetActive(false);
+            }
+
+            OrbitScoutUiTheme.ApplyGlassButtons(hudView);
+            LayoutEndScreenButtons();
+        }
+
+        static GameObject CreateRuntimePanel(Transform parent, string name)
+        {
+            GameObject panel = new GameObject(name, typeof(RectTransform), typeof(Image));
+            panel.transform.SetParent(parent, false);
+            RectTransform rect = panel.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            return panel;
+        }
+
+        static TMP_Text CreateRuntimeLabel(Transform parent, string name, string text, float size, Vector2 anchor, float width, float height)
+        {
+            GameObject go = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
+            go.transform.SetParent(parent, false);
+            RectTransform rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(width, height);
+            TMP_Text tmp = go.GetComponent<TextMeshProUGUI>();
+            tmp.text = text;
+            tmp.fontSize = size;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.color = Color.white;
+            tmp.raycastTarget = false;
+            return tmp;
+        }
+
+        static Button CreateRuntimeButton(Transform parent, string name, string label, Vector2 anchor, bool primary)
+        {
+            GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            RectTransform rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.sizeDelta = new Vector2(560f, 72f);
+            Button button = go.GetComponent<Button>();
+            OrbitScoutUiTheme.StyleMenuPillButton(button, primary);
+            CreateRuntimeLabel(go.transform, "Label", label, 26, new Vector2(0.5f, 0.5f), 520f, 60f);
+            return button;
+        }
+
+        void WireButtonListeners()
+        {
+            if (hudView == null)
+                return;
+
+            Wire(hudView.playButton, ShowLevelSelect);
+            Wire(hudView.resetJourneyButton, OnResetJourney);
+            Wire(hudView.levelSelectBackButton, ShowMainMenu);
+            Wire(hudView.noneMatchButton, OnNoneMatchClicked);
+            Wire(hudView.restartButton, RestartCurrentLevel);
+            Wire(hudView.menuButton, QuitPlayToMainMenu);
+            Wire(hudView.retryLevelButton, RetryLastLevel);
+            Wire(hudView.endLevelSelectButton, ShowLevelSelect);
+            Wire(hudView.endMainMenuButton, ShowMainMenu);
+            Wire(briefingStartButton, BeginMissionAfterBriefing);
+            Wire(briefingBackButton, ShowLevelSelect);
+            Wire(continueNextButton, ContinueToNextLevel);
+
+            if (levelSelectPanel != null)
+            {
+                foreach (OrbitScoutLevelCardButton card in levelSelectPanel.GetComponentsInChildren<OrbitScoutLevelCardButton>(true))
+                {
+                    Button button = card.GetComponent<Button>();
+                    if (button == null)
+                        continue;
+
+                    LevelId level = card.level;
+                    button.onClick.RemoveAllListeners();
+                    button.onClick.AddListener(() => ShowLevelBriefing(level));
+                }
+            }
+        }
+
+        static void Wire(Button button, UnityEngine.Events.UnityAction action)
+        {
+            if (button == null)
+                return;
+
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(action);
         }
 
         void OnDestroy()
         {
             SunTapReject.OnSunTapMessage -= HandleSunTap;
             UnwireSession();
+        }
+
+        void SyncArCameraToActivePanel()
+        {
+            if (playPanel != null && playPanel.activeSelf)
+                OrbitScoutArCameraPresentation.ApplyLevelPresentation();
+            else
+                OrbitScoutArCameraPresentation.ApplyMenuPresentation();
         }
 
         void WireSession()
@@ -86,205 +338,102 @@ namespace OrbitScout.UI
             session.OnLevel4PhaseChanged -= HandleLevel4PhaseChanged;
         }
 
-        void BuildUi()
+        void HideAllPanels()
         {
-            OrbitScoutUiInputSetup.EnsureEventSystem();
-
-            GameObject canvasObject = new GameObject("OrbitScoutHud");
-            canvasObject.transform.SetParent(transform, false);
-            canvas = canvasObject.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 200;
-            canvasObject.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            canvasObject.GetComponent<CanvasScaler>().referenceResolution = new Vector2(1080f, 1920f);
-            canvasObject.AddComponent<GraphicRaycaster>();
-
-            menuPanel = CreatePanel("MenuPanel", canvas.transform);
-            OrbitScoutUiTheme.ApplyPanelBackdrop(menuPanel, fullScreenMenu: true);
-            TMP_Text title = CreateLabel(menuPanel.transform, "Orbit Scout", 56, new Vector2(0.5f, 0.78f), out _);
-            OrbitScoutUiTheme.StyleTitle(title);
-            TMP_Text subtitle = CreateLabel(menuPanel.transform, "Educational AR · Solar System Quiz", 22, new Vector2(0.5f, 0.70f), out _);
-            OrbitScoutUiTheme.StyleSubtitle(subtitle);
-            menuScoresText = CreateLabel(menuPanel.transform, "", 24, new Vector2(0.5f, 0.58f), out _);
-            OrbitScoutUiTheme.StyleBody(menuScoresText);
-            CreateStyledButton(menuPanel.transform, "Play", new Vector2(0.5f, 0.46f), ShowLevelSelect, true);
-            CreateStyledButton(menuPanel.transform, "Reset Journey", new Vector2(0.5f, 0.36f), OnResetJourney, false);
-
-            playPanel = CreatePanel("PlayPanel", canvas.transform);
-            OrbitScoutUiTheme.ApplyPanelBackdrop(playPanel, playHud: true);
-            CreateHudCard(playPanel.transform, new Vector2(0.5f, 0.82f), new Vector2(920f, 280f));
-            questionText = CreateLabel(playPanel.transform, "", 28, new Vector2(0.5f, 0.82f), out _);
-            OrbitScoutUiTheme.StyleBody(questionText);
-            scoreText = CreateLabel(playPanel.transform, "Score 0", 26, new Vector2(0.5f, 0.94f), out _);
-            scoreText.color = OrbitScoutUiTheme.AccentCyan;
-            timerText = CreateLabel(playPanel.transform, "", 26, new Vector2(0.5f, 0.90f), out _);
-            timerText.color = OrbitScoutUiTheme.AccentGold;
-            streakText = CreateLabel(playPanel.transform, "", 28, new Vector2(0.5f, 0.72f), out _);
-            streakText.fontStyle = FontStyles.Bold;
-            streakText.color = OrbitScoutUiTheme.AccentGold;
-            CreateHudCard(playPanel.transform, new Vector2(0.5f, 0.16f), new Vector2(920f, 140f));
-            feedbackText = CreateLabel(playPanel.transform, "Tap a planet.", 24, new Vector2(0.5f, 0.16f), out _);
-            OrbitScoutUiTheme.StyleBody(feedbackText);
-
-            noneMatchButton = CreateStyledButtonReturn(playPanel.transform, "No planet matches", new Vector2(0.5f, 0.06f), OnNoneMatchClicked, true);
-            noneMatchButton.gameObject.SetActive(false);
-
-            CreateStyledButtonReturn(playPanel.transform, "Restart", new Vector2(0.18f, 0.96f), RestartCurrentLevel, false);
-            CreateStyledButtonReturn(playPanel.transform, "Menu", new Vector2(0.82f, 0.96f), QuitPlayToMainMenu, false);
-
-            endPanel = CreatePanel("EndPanel", canvas.transform);
-            OrbitScoutUiTheme.ApplyPanelBackdrop(endPanel, fullScreenMenu: true);
-            TMP_Text endTitle = CreateLabel(endPanel.transform, "Mission Debrief", 48, new Vector2(0.5f, 0.70f), out _);
-            OrbitScoutUiTheme.StyleTitle(endTitle);
-            endBodyText = CreateLabel(endPanel.transform, "", 26, new Vector2(0.5f, 0.50f), out _);
-            OrbitScoutUiTheme.StyleBody(endBodyText);
-            CreateStyledButton(endPanel.transform, "Retry Level", new Vector2(0.5f, 0.32f), RetryLastLevel, true);
-            CreateStyledButton(endPanel.transform, "Level Select", new Vector2(0.5f, 0.22f), ShowLevelSelect, false);
-            CreateStyledButton(endPanel.transform, "Main Menu", new Vector2(0.5f, 0.12f), ShowMainMenu, false);
-
-            levelSelectPanel = CreatePanel("LevelSelectPanel", canvas.transform);
-            OrbitScoutUiTheme.ApplyPanelBackdrop(levelSelectPanel, fullScreenMenu: true);
-            TMP_Text levelTitle = CreateLabel(levelSelectPanel.transform, "Choose Mission", 46, new Vector2(0.5f, 0.84f), out _);
-            OrbitScoutUiTheme.StyleTitle(levelTitle);
-            CreateLevelCard(levelSelectPanel.transform, "I", "First Orbit", "8 planets · learn the basics", 0.68f, LevelId.Level1);
-            CreateLevelCard(levelSelectPanel.transform, "II", "Save the Planets", "Restore color before they break", 0.56f, LevelId.Level2);
-            CreateLevelCard(levelSelectPanel.transform, "III", "Shared Traits", "Multi-select · timed challenge", 0.44f, LevelId.Level3);
-            CreateLevelCard(levelSelectPanel.transform, "IV", "Gauntlet", "Blind timed final exam", 0.32f, LevelId.Level4);
-            CreateStyledButton(levelSelectPanel.transform, "Back", new Vector2(0.5f, 0.18f), ShowMainMenu, false);
-            levelSelectStatusText = CreateLabel(levelSelectPanel.transform, "", 22, new Vector2(0.5f, 0.08f), out _);
-            OrbitScoutUiTheme.StyleSubtitle(levelSelectStatusText);
-        }
-
-        void CreateLevelCard(Transform parent, string numeral, string title, string desc, float anchorY, LevelId level)
-        {
-            GameObject card = new GameObject("LevelCard_" + (int)level, typeof(RectTransform), typeof(Image), typeof(Button));
-            card.transform.SetParent(parent, false);
-            RectTransform rect = card.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, anchorY);
-            rect.anchorMax = new Vector2(0.5f, anchorY);
-            rect.sizeDelta = new Vector2(880f, 96f);
-
-            Image bg = card.GetComponent<Image>();
-            bg.color = OrbitScoutUiTheme.PanelSurface;
-            Outline outline = card.AddComponent<Outline>();
-            outline.effectColor = OrbitScoutUiTheme.PanelBorder;
-            outline.effectDistance = new Vector2(1.5f, -1.5f);
-
-            Button button = card.GetComponent<Button>();
-            button.onClick.AddListener(() => TryStartLevel(level));
-            OrbitScoutUiTheme.StyleButton(button, false);
-
-            TMP_Text num = CreateLabel(card.transform, numeral, 34, new Vector2(0.12f, 0.5f), out _);
-            num.color = OrbitScoutUiTheme.AccentCyan;
-            num.fontStyle = FontStyles.Bold;
-            TMP_Text titleText = CreateLabel(card.transform, title, 28, new Vector2(0.52f, 0.62f), out _);
-            titleText.color = OrbitScoutUiTheme.TextPrimary;
-            titleText.alignment = TextAlignmentOptions.Left;
-            titleText.rectTransform.sizeDelta = new Vector2(520f, 80f);
-            TMP_Text descText = CreateLabel(card.transform, desc, 22, new Vector2(0.52f, 0.38f), out _);
-            descText.color = OrbitScoutUiTheme.TextMuted;
-            descText.alignment = TextAlignmentOptions.Left;
-            descText.rectTransform.sizeDelta = new Vector2(520f, 60f);
-        }
-
-        static void CreateHudCard(Transform parent, Vector2 anchor, Vector2 size)
-        {
-            GameObject card = new GameObject("HudCard", typeof(RectTransform), typeof(Image));
-            card.transform.SetParent(parent, false);
-            RectTransform rect = card.GetComponent<RectTransform>();
-            rect.anchorMin = anchor;
-            rect.anchorMax = anchor;
-            rect.sizeDelta = size;
-            Image image = card.GetComponent<Image>();
-            image.color = new Color(0.07f, 0.1f, 0.18f, 0.78f);
-            image.raycastTarget = false;
-        }
-
-        static void CreateStyledButton(Transform parent, string label, Vector2 anchor, UnityEngine.Events.UnityAction onClick, bool primary)
-        {
-            CreateStyledButtonReturn(parent, label, anchor, onClick, primary);
-        }
-
-        static Button CreateStyledButtonReturn(
-            Transform parent,
-            string label,
-            Vector2 anchor,
-            UnityEngine.Events.UnityAction onClick,
-            bool primary)
-        {
-            Button button = CreateButtonReturn(parent, label, anchor, onClick);
-            OrbitScoutUiTheme.StyleButton(button, primary);
-            TMP_Text labelTmp = button.GetComponentInChildren<TextMeshProUGUI>();
-            if (labelTmp != null)
-            {
-                labelTmp.color = OrbitScoutUiTheme.TextPrimary;
-                labelTmp.fontStyle = primary ? FontStyles.Bold : FontStyles.Normal;
-            }
-            return button;
+            if (menuPanel != null)
+                menuPanel.SetActive(false);
+            if (menuScoresPanel != null)
+                menuScoresPanel.SetActive(false);
+            if (levelSelectPanel != null)
+                levelSelectPanel.SetActive(false);
+            if (briefingPanel != null)
+                briefingPanel.SetActive(false);
+            if (playPanel != null)
+                playPanel.SetActive(false);
+            if (endPanel != null)
+                endPanel.SetActive(false);
         }
 
         void RefreshScoreboard()
         {
+            if (menuScoresText == null)
+                return;
+
             menuScoresText.text =
                 "Overall: " + GameProgress.GetOverallScore() + "\n" +
                 "L1 best: " + GameProgress.GetLevelHighScore(LevelId.Level1) + "  " +
                 "L2: " + GameProgress.GetLevelHighScore(LevelId.Level2) + "\n" +
                 "L3: " + GameProgress.GetLevelHighScore(LevelId.Level3) + "  " +
                 "L4: " + GameProgress.GetLevelHighScore(LevelId.Level4) + "\n" +
-                (GameProgress.BypassLevelLocks
-                    ? "Testing: all levels unlocked"
-                    : "Unlocked through Level " + GameProgress.GetUnlockedLevel());
+                "Unlocked through Level " + GameProgress.GetUnlockedLevel();
         }
 
         void ShowMainMenu()
         {
+            if (menuPanel == null)
+                return;
+
+            HideAllPanels();
             menuPanel.SetActive(true);
-            levelSelectPanel.SetActive(false);
-            playPanel.SetActive(false);
-            endPanel.SetActive(false);
+            if (menuScoresPanel != null)
+                menuScoresPanel.SetActive(true);
             OrbitScoutArCameraPresentation.ApplyMenuPresentation();
             RefreshScoreboard();
         }
 
         void ShowLevelSelect()
         {
-            GameProgress.UnlockAllLevelsForTesting();
+            GameProgress.UseNormalProgression();
             WireSession();
-            menuPanel.SetActive(false);
+            HideAllPanels();
             levelSelectPanel.SetActive(true);
-            playPanel.SetActive(false);
-            endPanel.SetActive(false);
             levelSelectPanel.transform.SetAsLastSibling();
             OrbitScoutArCameraPresentation.ApplyMenuPresentation();
+            RefreshLevelCardLocks();
             if (levelSelectStatusText != null)
-                levelSelectStatusText.text = GameProgress.BypassLevelLocks
-                    ? "Test mode: pick any level"
-                    : "Unlocked through level " + GameProgress.GetUnlockedLevel();
+                levelSelectStatusText.text = "Follow the path · clear a mission to unlock the next";
             RefreshScoreboard();
         }
 
-        void SetLevelSelectStatus(string message)
-        {
-            if (levelSelectStatusText != null)
-                levelSelectStatusText.text = message;
-        }
-
-        void TryStartLevel(LevelId level)
+        void ShowLevelBriefing(LevelId level)
         {
             if (!GameProgress.IsLevelUnlocked(level))
             {
-                SetLevelSelectStatus("Beat the previous level to unlock this one.");
+                string need = level == LevelId.Level1
+                    ? "Mission I"
+                    : "Mission " + OrbitScoutLevelBriefings.RomanNumeral((LevelId)((int)level - 1));
+                SetLevelSelectStatus("Locked — pass " + need + " first to open this mission.");
                 return;
             }
 
-            SetLevelSelectStatus("Starting level " + (int)level + "…");
             pendingLevel = level;
+            WireSession();
+            HideAllPanels();
+            if (briefingPanel == null)
+            {
+                BeginMissionAfterBriefing();
+                return;
+            }
+
+            briefingPanel.SetActive(true);
+            briefingPanel.transform.SetAsLastSibling();
+            if (briefingTitleText != null)
+                briefingTitleText.text = OrbitScoutLevelBriefings.Title(level);
+            if (briefingBodyText != null)
+                briefingBodyText.text = OrbitScoutLevelBriefings.Body(level);
+            OrbitScoutArCameraPresentation.ApplyMenuPresentation();
+        }
+
+        void BeginMissionAfterBriefing()
+        {
+            LevelId level = pendingLevel;
             WireSession();
 
             MissionController session = MissionController.Instance;
             if (session == null)
             {
                 SetLevelSelectStatus("Missing MissionController on OrbitScout object.");
+                ShowLevelSelect();
                 return;
             }
 
@@ -292,6 +441,7 @@ namespace OrbitScout.UI
             if (bootstrap == null)
             {
                 SetLevelSelectStatus("Missing SolarBootstrap on OrbitScout object.");
+                ShowLevelSelect();
                 return;
             }
 
@@ -301,16 +451,28 @@ namespace OrbitScout.UI
                 if (bridge == null)
                 {
                     SetLevelSelectStatus("AR bridge missing — open SampleScene and run Orbit Scout → Setup AR.");
+                    ShowLevelSelect();
                     return;
                 }
 
                 bootstrap.SetPendingLevel(level);
-                levelSelectPanel.SetActive(false);
+                HideAllPanels();
                 playPanel.SetActive(true);
                 playPanel.transform.SetAsLastSibling();
                 OrbitScoutArCameraPresentation.ApplyLevelPresentation();
-                questionText.text = "Scan a surface…";
-                feedbackText.text = "Tap to place the solar system.";
+                if (questionText != null)
+                    questionText.text = "Scan a surface…";
+                if (feedbackText != null)
+                    feedbackText.text = string.Empty;
+                if (streakText != null)
+                {
+                    streakText.text = string.Empty;
+                    streakText.gameObject.SetActive(false);
+                }
+                if (scoreText != null)
+                    scoreText.text = "Score  0";
+                if (timerText != null)
+                    timerText.text = string.Empty;
                 bridge.BeginPlacement();
                 return;
             }
@@ -318,9 +480,59 @@ namespace OrbitScout.UI
             bootstrap.StartLevelSession(level);
         }
 
-        void RetryLastLevel()
+        void RefreshLevelCardLocks()
         {
-            TryStartLevel(pendingLevel);
+            if (levelSelectPanel == null)
+                return;
+
+            OrbitScoutLevelMapController map = levelSelectPanel.GetComponentInChildren<OrbitScoutLevelMapController>(true);
+            if (map != null)
+            {
+                map.RefreshLocks();
+                return;
+            }
+
+            foreach (OrbitScoutLevelCardButton card in levelSelectPanel.GetComponentsInChildren<OrbitScoutLevelCardButton>(true))
+            {
+                if (card is OrbitScoutLevelMapNode)
+                    continue;
+
+                Button button = card.GetComponent<Button>();
+                if (button == null)
+                    continue;
+
+                bool unlocked = GameProgress.IsLevelUnlocked(card.level);
+                button.interactable = unlocked;
+                button.enabled = true;
+
+                Image image = card.GetComponent<Image>();
+                if (image != null)
+                {
+                    Color c = OrbitScoutUiTheme.PanelSurface;
+                    c.a = unlocked ? 0.88f : 0.32f;
+                    image.color = c;
+                    image.raycastTarget = unlocked;
+                }
+            }
+        }
+
+        void SetLevelSelectStatus(string message)
+        {
+            if (levelSelectStatusText != null)
+                levelSelectStatusText.text = message;
+        }
+
+        void RetryLastLevel() => ShowLevelBriefing(pendingLevel);
+
+        void ContinueToNextLevel()
+        {
+            if (continueTargetLevel == null)
+            {
+                ShowLevelSelect();
+                return;
+            }
+
+            ShowLevelBriefing(continueTargetLevel.Value);
         }
 
         void RestartCurrentLevel()
@@ -331,10 +543,7 @@ namespace OrbitScout.UI
                 return;
 
             bootstrap.EndPlaySession();
-            if (bootstrap.playMode == SolarPlayMode.AugmentedReality)
-                bootstrap.RestartCurrentLevelInPlace();
-            else
-                bootstrap.StartLevelSession(pendingLevel);
+            ShowLevelBriefing(pendingLevel);
         }
 
         void QuitPlayToMainMenu()
@@ -347,148 +556,133 @@ namespace OrbitScout.UI
         void OnResetJourney()
         {
             GameProgress.ResetJourney();
+            RefreshScoreboard();
             ShowMainMenu();
         }
 
-        void OnNoneMatchClicked()
-        {
-            MissionController.Instance?.SubmitNoMatchingPlanet();
-        }
+        void OnNoneMatchClicked() => MissionController.Instance?.SubmitNoMatchingPlanet();
 
         void HandleLevelStarted(LevelId level)
         {
             pendingLevel = level;
-            menuPanel.SetActive(false);
-            levelSelectPanel.SetActive(false);
+            HideAllPanels();
             playPanel.SetActive(true);
-            endPanel.SetActive(false);
             playPanel.transform.SetAsLastSibling();
             OrbitScoutArCameraPresentation.ApplyLevelPresentation();
-            noneMatchButton.gameObject.SetActive(level == LevelId.Level4);
-            streakText.text = LevelRulesLine(level);
-            feedbackText.text = MissionBanter.PickMissionStart();
-        }
-
-        static string LevelRulesLine(LevelId level)
-        {
-            switch (level)
+            if (noneMatchButton != null)
+                noneMatchButton.gameObject.SetActive(false);
+            if (streakText != null)
             {
-                case LevelId.Level1: return "8 questions · no timer · need 5/8 to unlock L2";
-                case LevelId.Level2: return "24 facts · restore planets · save 3 to unlock L3";
-                case LevelId.Level3: return "10 questions · 10 min · need 7/10 · one wrong fails Q";
-                case LevelId.Level4: return "5 questions · 10s read + 10s answer · need 5/5";
-                default: return string.Empty;
+                streakText.text = string.Empty;
+                streakText.gameObject.SetActive(false);
             }
+            if (feedbackText != null)
+                feedbackText.text = string.Empty;
+            if (scoreText != null)
+                scoreText.text = "Score  0";
+            OrbitScoutUiTheme.StylePlayHudTexts(streakText, questionText, scoreText, timerText, feedbackText);
         }
 
         void HandleQuestionChanged(string header, string body)
         {
-            questionText.text = header + "\n" + body;
+            // Clue / characteristics only — no question-count UI
+            if (streakText != null)
+            {
+                streakText.text = string.Empty;
+                streakText.gameObject.SetActive(false);
+            }
+            if (questionText != null)
+                questionText.text = body;
         }
 
         void HandleFeedback(string message)
         {
-            feedbackText.text = message;
+            if (feedbackText == null)
+                return;
+
+            feedbackText.text = string.IsNullOrWhiteSpace(message) ? string.Empty : message;
         }
 
         void HandleScoreChanged(int score)
         {
-            scoreText.text = "Score " + score;
+            if (scoreText != null)
+                scoreText.text = "Score  " + score;
         }
 
         void HandleTimerTick(float time)
         {
             MissionController session = MissionController.Instance;
-            if (session == null)
+            if (session == null || timerText == null)
                 return;
 
             if (session.ActiveLevel == LevelId.Level3)
-                timerText.text = "Time " + Mathf.CeilToInt(time) + "s";
+                timerText.text = Mathf.CeilToInt(time) + "s";
             else if (session.ActiveLevel == LevelId.Level4 && session.Level4Phase != Level4Phase.None)
-                timerText.text = session.Level4Phase + " " + Mathf.CeilToInt(time) + "s";
+                timerText.text = Mathf.CeilToInt(time) + "s";
             else
                 timerText.text = string.Empty;
         }
 
         void HandleLevel4PhaseChanged(Level4Phase phase)
         {
-            noneMatchButton.gameObject.SetActive(phase == Level4Phase.Answering);
+            if (noneMatchButton != null)
+                noneMatchButton.gameObject.SetActive(false);
         }
 
         void HandleLevelEnded(LevelRunResult result)
         {
-            playPanel.SetActive(false);
+            HideAllPanels();
             endPanel.SetActive(true);
-            noneMatchButton.gameObject.SetActive(false);
+            if (noneMatchButton != null)
+                noneMatchButton.gameObject.SetActive(false);
             OrbitScoutArCameraPresentation.ApplyMenuPresentation();
 
-            endBodyText.text =
-                result.Summary + "\n\n" +
-                "Score: " + result.Score + " (best " + GameProgress.GetLevelHighScore(result.Level) + ")\n" +
-                "Correct: " + result.CorrectCount + "/" + result.TotalQuestions + "\n" +
-                "Overall: " + GameProgress.GetOverallScore();
+            LevelId? next = OrbitScoutLevelBriefings.NextLevel(result.Level);
+            bool canContinue = result.PassedUnlock && next != null && GameProgress.IsLevelUnlocked(next.Value);
+            continueTargetLevel = canContinue ? next : null;
+
+            if (resultsPanel == null && endPanel != null)
+                resultsPanel = OrbitScoutResultsPanel.EnsureOnEndPanel(endPanel);
+            resultsPanel?.ShowResult(result);
+
+            if (continueNextButton != null)
+            {
+                continueNextButton.gameObject.SetActive(canContinue);
+                if (canContinue)
+                {
+                    TMP_Text label = continueNextButton.GetComponentInChildren<TMP_Text>();
+                    if (label != null)
+                        label.text = "Continue to Mission " + OrbitScoutLevelBriefings.RomanNumeral(next.Value);
+                }
+            }
+
+            if (hudView != null && hudView.retryLevelButton != null)
+            {
+                hudView.retryLevelButton.gameObject.SetActive(true);
+                OrbitScoutUiTheme.StyleMenuPillButton(hudView.retryLevelButton, !canContinue);
+                TMP_Text retryLabel = hudView.retryLevelButton.GetComponentInChildren<TMP_Text>();
+                if (retryLabel != null)
+                    retryLabel.text = result.PassedUnlock ? "Replay Mission" : "Try Again";
+            }
+
+            LayoutEndScreenButtons();
+
+            // Keep legacy body text in sync for accessibility / debugging (hidden visually)
+            if (endBodyText != null)
+            {
+                endBodyText.gameObject.SetActive(false);
+                endBodyText.text =
+                    result.Summary + "\n\n" +
+                    "Score: " + result.Score + " (best " + GameProgress.GetLevelHighScore(result.Level) + ")\n" +
+                    "Correct: " + result.CorrectCount + "/" + result.TotalQuestions + "\n" +
+                    "Overall: " + GameProgress.GetOverallScore();
+            }
         }
 
         void HandleSunTap(string message)
         {
-            feedbackText.text = message;
-        }
-
-        static GameObject CreatePanel(string name, Transform parent)
-        {
-            GameObject panel = new GameObject(name, typeof(RectTransform));
-            panel.transform.SetParent(parent, false);
-            RectTransform rect = panel.GetComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-            return panel;
-        }
-
-        static TMP_Text CreateLabel(Transform parent, string text, float size, Vector2 anchor, out GameObject go)
-        {
-            go = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
-            go.transform.SetParent(parent, false);
-            RectTransform rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = anchor;
-            rect.anchorMax = anchor;
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(920f, 200f);
-
-            TMP_Text tmp = go.GetComponent<TextMeshProUGUI>();
-            tmp.text = text;
-            tmp.fontSize = size;
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = Color.white;
-            tmp.textWrappingMode = TextWrappingModes.Normal;
-            tmp.raycastTarget = false;
-            return tmp;
-        }
-
-        static void CreateButton(Transform parent, string label, Vector2 anchor, UnityEngine.Events.UnityAction onClick)
-        {
-            CreateButtonReturn(parent, label, anchor, onClick);
-        }
-
-        static Button CreateButtonReturn(Transform parent, string label, Vector2 anchor, UnityEngine.Events.UnityAction onClick)
-        {
-            GameObject go = new GameObject("Button", typeof(RectTransform), typeof(Image), typeof(Button));
-            go.transform.SetParent(parent, false);
-            RectTransform rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = anchor;
-            rect.anchorMax = anchor;
-            rect.sizeDelta = new Vector2(anchor.y > 0.9f ? 200f : 520f, 72f);
-
-            Image image = go.GetComponent<Image>();
-            image.color = new Color(0.15f, 0.55f, 0.75f, 1f);
-
-            Button button = go.GetComponent<Button>();
-            button.onClick.AddListener(onClick);
-
-            TMP_Text labelText = CreateLabel(go.transform, label, 26, new Vector2(0.5f, 0.5f), out _);
-            labelText.raycastTarget = false;
-            return button;
+            if (feedbackText != null)
+                feedbackText.text = message;
         }
     }
 }
