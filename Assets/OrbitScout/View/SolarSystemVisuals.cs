@@ -4,36 +4,52 @@ namespace OrbitScout.View
 {
     public static class SolarSystemVisuals
     {
-        static Material sunMaterial;
         static Material orbitLineMaterial;
 
         public static void SetupSun(GameObject sun)
         {
             Renderer renderer = sun.GetComponent<Renderer>();
-            if (renderer == null)
+            if (renderer != null)
+                PlanetMaterials.ApplySun(renderer);
+
+            EnsureSunGlow(sun.transform);
+            EnsureSunLight(sun);
+        }
+
+        static void EnsureSunGlow(Transform sun)
+        {
+            Transform existing = sun.Find("SunGlow");
+            if (existing != null)
                 return;
 
-            if (sunMaterial == null)
-            {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-                sunMaterial = new Material(shader);
-                sunMaterial.EnableKeyword("_EMISSION");
-                sunMaterial.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
-            }
+            GameObject glow = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            glow.name = "SunGlow";
+            glow.transform.SetParent(sun, false);
+            glow.transform.localPosition = Vector3.zero;
+            glow.transform.localScale = Vector3.one * 2.35f;
 
-            renderer.sharedMaterial = sunMaterial;
-            Color baseSun = new Color(1f, 0.78f, 0.25f);
-            renderer.material.color = baseSun;
-            renderer.material.SetColor("_EmissionColor", baseSun * 2.2f);
+            Collider col = glow.GetComponent<Collider>();
+            if (col != null)
+                Object.Destroy(col);
 
+            Renderer glowRenderer = glow.GetComponent<Renderer>();
+            PlanetMaterials.ApplySunGlow(glowRenderer);
+
+            // Billboard so the corona faces the camera
+            glow.AddComponent<SunGlowBillboard>();
+        }
+
+        static void EnsureSunLight(GameObject sun)
+        {
             Light light = sun.GetComponent<Light>();
-            if (light != null)
-            {
-                light.type = LightType.Point;
-                light.color = new Color(1f, 0.85f, 0.65f);
-                light.intensity = 2.4f;
-                light.range = 8f;
-            }
+            if (light == null)
+                light = sun.AddComponent<Light>();
+
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.88f, 0.62f);
+            light.intensity = 2.6f;
+            light.range = 8f;
+            light.shadows = LightShadows.Soft;
         }
 
         public static void AddOrbitRing(Transform root, Transform center, float radius)
@@ -75,16 +91,24 @@ namespace OrbitScout.View
             return orbitLineMaterial;
         }
 
-        public static void ConfigurePlanetRenderer(Renderer renderer, Color color)
+        public static void ConfigurePlanetRenderer(Renderer renderer, PlanetId id)
         {
-            if (renderer == null)
+            PlanetMaterials.ApplyBody(renderer, id);
+        }
+    }
+
+    /// <summary>
+    /// Keeps the sun corona quad facing the active camera.
+    /// </summary>
+    public sealed class SunGlowBillboard : MonoBehaviour
+    {
+        void LateUpdate()
+        {
+            Camera cam = Camera.main;
+            if (cam == null)
                 return;
 
-            renderer.material.color = color;
-            if (renderer.material.HasProperty("_Smoothness"))
-                renderer.material.SetFloat("_Smoothness", 0.65f);
-            if (renderer.material.HasProperty("_Metallic"))
-                renderer.material.SetFloat("_Metallic", 0.08f);
+            transform.rotation = Quaternion.LookRotation(transform.position - cam.transform.position, Vector3.up);
         }
     }
 }

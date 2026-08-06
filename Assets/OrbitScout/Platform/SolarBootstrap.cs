@@ -36,16 +36,7 @@ namespace OrbitScout.Platform
                 arenaAnchor = anchorObject.transform;
             }
 
-            if (playMode == SolarPlayMode.EditorDesktop &&
-                FindAnyObjectByType<UnityEngine.XR.ARFoundation.ARRaycastManager>() != null)
-            {
-                playMode = SolarPlayMode.AugmentedReality;
-            }
-
-            if (playMode == SolarPlayMode.EditorDesktop)
-                EditorPlayRig.Ensure();
-            else
-                OrbitScoutUiInputSetup.EnsureEventSystem();
+            OrbitScoutUiInputSetup.EnsureEventSystem();
         }
 
         void OnDestroy()
@@ -56,8 +47,13 @@ namespace OrbitScout.Platform
 
         void Start()
         {
+            // SceneEntry may flip playMode in Awake; apply the final mode here.
             if (playMode == SolarPlayMode.EditorDesktop)
-                arenaAnchor.position = Vector3.zero;
+            {
+                EditorPlayRig.Ensure();
+                if (arenaAnchor != null)
+                    arenaAnchor.position = Vector3.zero;
+            }
         }
 
         public void SetPendingLevel(LevelId level)

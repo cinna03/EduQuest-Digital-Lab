@@ -260,7 +260,6 @@ public static class OrbitScoutHudEditorBuilder
         view.streakText = CreateLabel(view.playPanel.transform, "Streak", "", 28, new Vector2(0.5f, 0.72f), out _);
         view.streakText.fontStyle = FontStyles.Bold;
         view.streakText.color = OrbitScoutUiTheme.AccentGold;
-        CreateHudCard(view.playPanel.transform, "FeedbackCard", new Vector2(0.5f, 0.16f), new Vector2(920f, 140f));
         view.feedbackText = CreateLabel(view.playPanel.transform, "Feedback", "", 24, new Vector2(0.5f, 0.16f), out _);
         OrbitScoutUiTheme.StylePlayHudTexts(view.streakText, view.questionText, view.scoreText, view.timerText, view.feedbackText);
         view.noneMatchButton = CreateButton(view.playPanel.transform, "NoneMatchButton", "No planet matches", new Vector2(0.5f, 0.06f), primary: true);

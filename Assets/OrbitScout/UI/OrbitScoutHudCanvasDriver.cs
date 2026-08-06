@@ -1,9 +1,11 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace OrbitScout.UI
 {
     /// <summary>
-    /// Edit mode: World Space canvas (visible in Scene view). Play mode: Screen Space Camera HUD.
+    /// Edit mode: World Space canvas (visible in Scene view).
+    /// Play mode: root Screen Space Overlay so the HUD always draws in Game view.
     /// </summary>
     [RequireComponent(typeof(Canvas))]
     [DisallowMultipleComponent]
@@ -13,17 +15,9 @@ namespace OrbitScout.UI
         public const float EditReferenceHeight = 1920f;
         public const float EditWorldScale = 0.002f;
 
-        [SerializeField] float planeDistance = 100f;
-
         void Awake() => ApplyPlayModePresentation();
 
-        void OnDestroy()
-        {
-#if UNITY_EDITOR
-            if (!Application.isPlaying)
-                return;
-#endif
-        }
+        void Start() => ApplyPlayModePresentation();
 
         public void ApplyEditModePresentation()
         {
@@ -34,7 +28,7 @@ namespace OrbitScout.UI
 
             canvas.renderMode = RenderMode.WorldSpace;
             canvas.worldCamera = null;
-            canvas.planeDistance = planeDistance;
+            canvas.planeDistance = 1f;
 
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -47,6 +41,13 @@ namespace OrbitScout.UI
 
         public void ApplyPlayModePresentation()
         {
+            if (!Application.isPlaying)
+                return;
+
+            // Overlay canvases must not live under a 3D transform (XR Origin / OrbitScout)
+            if (transform.parent != null)
+                transform.SetParent(null, false);
+
             Canvas canvas = GetComponent<Canvas>();
             RectTransform rect = (RectTransform)transform;
             if (canvas == null || rect == null)
@@ -55,13 +56,33 @@ namespace OrbitScout.UI
             rect.localScale = Vector3.one;
             rect.localRotation = Quaternion.identity;
             rect.localPosition = Vector3.zero;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.sizeDelta = Vector2.zero;
 
-            canvas.renderMode = RenderMode.ScreenSpaceCamera;
-            canvas.planeDistance = planeDistance;
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.worldCamera = null;
+            canvas.sortingOrder = 5000;
+            canvas.enabled = true;
+            // TMP needs these channels or labels disappear
+            canvas.additionalShaderChannels =
+                AdditionalCanvasShaderChannels.TexCoord1
+                | AdditionalCanvasShaderChannels.Normal
+                | AdditionalCanvasShaderChannels.Tangent;
 
-            Camera cam = Camera.main;
-            if (cam != null)
-                canvas.worldCamera = cam;
+            CanvasScaler scaler = GetComponent<CanvasScaler>();
+            if (scaler != null)
+            {
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(EditReferenceWidth, EditReferenceHeight);
+                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                scaler.matchWidthOrHeight = 0.5f;
+            }
+
+            gameObject.SetActive(true);
         }
 
         public void BindWorldCamera() => ApplyPlayModePresentation();

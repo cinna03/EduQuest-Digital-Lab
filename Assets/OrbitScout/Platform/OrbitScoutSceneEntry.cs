@@ -5,8 +5,8 @@ using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 
 /// <summary>
-/// Ensures the scene works even if MonoBehaviours were not saved on the OrbitScout object.
-/// Auto-detects AR rig and wires placement.
+/// Wires Orbit Scout into SampleScene (AR) or EditorTest (desktop).
+/// Menus use the same Overlay HUD; AR mode keeps the live camera feed available.
 /// </summary>
 public class OrbitScoutSceneEntry : MonoBehaviour
 {
@@ -29,7 +29,11 @@ public class OrbitScoutSceneEntry : MonoBehaviour
                 bridge = raycastManager.gameObject.AddComponent<ArSessionBridge>();
             bridge.raycastManager = raycastManager;
             bridge.planeManager = raycastManager.GetComponent<ARPlaneManager>();
+
+            // Keep AR session + camera background running for live feed
+            EnsureArCameraLive();
             OrbitScoutArTemplateSuppress.Apply();
+            // Menu still shows branded panels; camera feed is behind / used after Start
             OrbitScoutArCameraPresentation.ApplyMenuPresentation();
         }
         else
@@ -39,5 +43,31 @@ public class OrbitScoutSceneEntry : MonoBehaviour
 
         if (GetComponent<MissionHud>() == null)
             gameObject.AddComponent<MissionHud>();
+    }
+
+    static void EnsureArCameraLive()
+    {
+        foreach (ARSession session in FindObjectsByType<ARSession>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            session.enabled = true;
+
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            foreach (Camera c in FindObjectsByType<Camera>(FindObjectsSortMode.None))
+            {
+                if (c != null && c.GetComponent<ARCameraBackground>() != null)
+                {
+                    cam = c;
+                    break;
+                }
+            }
+        }
+
+        if (cam == null)
+            return;
+
+        ARCameraBackground background = cam.GetComponent<ARCameraBackground>();
+        if (background != null)
+            background.enabled = true;
     }
 }

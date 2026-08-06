@@ -207,7 +207,6 @@ namespace OrbitScout.UI
             TMP_Text numeral = CreateChildLabel(go.transform, "Numeral", OrbitScoutLevelBriefings.RomanNumeral(level), 28f);
             numeral.fontStyle = FontStyles.Bold;
             numeral.rectTransform.anchoredPosition = new Vector2(0f, -52f);
-            OrbitScoutUiTheme.ApplyFont(numeral, title: true);
 
             OrbitScoutLevelMapNode node = go.GetComponent<OrbitScoutLevelMapNode>();
             node.Bind(this, level, fill, glow, lockImg, numeral);
@@ -267,14 +266,12 @@ namespace OrbitScout.UI
             hoverNumeral.rectTransform.anchoredPosition = new Vector2(0f, 18f);
             hoverNumeral.color = new Color(0.85f, 0.70f, 1f, 1f);
             hoverNumeral.fontStyle = FontStyles.Bold;
-            OrbitScoutUiTheme.ApplyFont(hoverNumeral, title: true);
 
             hoverTitle = CreateChildLabel(popup.transform, "Title", "First Orbit", 26f);
             hoverTitle.rectTransform.anchoredPosition = new Vector2(0f, -12f);
             hoverTitle.rectTransform.sizeDelta = new Vector2(320f, 40f);
             hoverTitle.color = Color.white;
             hoverTitle.fontStyle = FontStyles.Bold;
-            OrbitScoutUiTheme.ApplyFont(hoverTitle, title: true);
         }
 
         void LateUpdate()

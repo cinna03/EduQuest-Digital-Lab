@@ -1,3 +1,4 @@
+using OrbitScout.View;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -30,63 +31,9 @@ namespace OrbitScout.UI
         public const string UiWhiteSpriteResourcePath = "OrbitScout/UIWhite";
         public const string GlassPillShaderName = "OrbitScout/UI/GlassPill";
 
-        public const string TitleFontResourcePath = "OrbitScout/Fonts/MoonveilStellarion SDF";
-        public const string TitleFontAssetPath = "Assets/OrbitScout/UI/Fonts/TMP/MoonveilStellarion SDF.asset";
-        public const string BodyFontResourcePath = "OrbitScout/Fonts/NormanKane SDF";
-        public const string BodyFontAssetPath = "Assets/OrbitScout/UI/Fonts/TMP/NormanKane SDF.asset";
-        public const string FallbackBodyFontResourcePath = "OrbitScout/Fonts/GwBantleyRegular SDF";
-        public const string FallbackBodyFontAssetPath = "Assets/OrbitScout/UI/Fonts/TMP/GwBantleyRegular SDF.asset";
-
         static Sprite cachedMenuButtonSprite;
         static Sprite cachedWhiteSprite;
         static Shader cachedGlassShader;
-        static TMP_FontAsset cachedTitleFont;
-        static TMP_FontAsset cachedBodyFont;
-
-        public static TMP_FontAsset LoadTitleFont()
-        {
-            if (cachedTitleFont != null)
-                return cachedTitleFont;
-
-            cachedTitleFont = Resources.Load<TMP_FontAsset>(TitleFontResourcePath);
-#if UNITY_EDITOR
-            if (cachedTitleFont == null)
-                cachedTitleFont = UnityEditor.AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TitleFontAssetPath);
-#endif
-            return cachedTitleFont;
-        }
-
-        public static TMP_FontAsset LoadBodyFont()
-        {
-            if (cachedBodyFont != null)
-                return cachedBodyFont;
-
-            cachedBodyFont = Resources.Load<TMP_FontAsset>(BodyFontResourcePath);
-#if UNITY_EDITOR
-            if (cachedBodyFont == null)
-                cachedBodyFont = UnityEditor.AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(BodyFontAssetPath);
-#endif
-            if (cachedBodyFont == null)
-            {
-                cachedBodyFont = Resources.Load<TMP_FontAsset>(FallbackBodyFontResourcePath);
-#if UNITY_EDITOR
-                if (cachedBodyFont == null)
-                    cachedBodyFont = UnityEditor.AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FallbackBodyFontAssetPath);
-#endif
-            }
-
-            return cachedBodyFont;
-        }
-
-        public static void ApplyFont(TMP_Text text, bool title)
-        {
-            if (text == null)
-                return;
-
-            TMP_FontAsset font = title ? LoadTitleFont() : LoadBodyFont();
-            if (font != null)
-                text.font = font;
-        }
 
         public static Sprite LoadMenuButtonSprite()
         {
@@ -119,7 +66,7 @@ namespace OrbitScout.UI
             if (cachedGlassShader != null)
                 return cachedGlassShader;
 
-            cachedGlassShader = Shader.Find(GlassPillShaderName);
+            cachedGlassShader = OrbitScoutShaderLibrary.GlassPill ?? Shader.Find(GlassPillShaderName);
             return cachedGlassShader;
         }
 
@@ -226,7 +173,6 @@ namespace OrbitScout.UI
             TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
             if (label != null)
             {
-                ApplyFont(label, title: primary);
                 label.color = Color.white;
                 label.fontStyle = primary ? FontStyles.Bold : FontStyles.Normal;
                 label.enableAutoSizing = false;
@@ -289,37 +235,32 @@ namespace OrbitScout.UI
             Color softLavender = new Color(0.82f, 0.72f, 0.98f, 0.95f);
             Color cream = new Color(1f, 0.96f, 1f, 1f);
 
-            // Question-count UI removed — hide the old streak/Q label
             if (questionNumber != null)
             {
-                questionNumber.text = string.Empty;
-                questionNumber.gameObject.SetActive(false);
+                questionNumber.gameObject.SetActive(true);
+                questionNumber.color = softLavender;
+                questionNumber.fontStyle = FontStyles.Bold;
+                questionNumber.enableAutoSizing = false;
+                questionNumber.alignment = TextAlignmentOptions.Center;
             }
 
             if (clue != null)
             {
-                ApplyFont(clue, title: false);
                 clue.color = cream;
                 clue.fontStyle = FontStyles.Normal;
                 clue.enableAutoSizing = false;
                 clue.alignment = TextAlignmentOptions.Center;
-                if (clue.fontSize < 26f)
-                    clue.fontSize = 28f;
             }
 
             if (score != null)
             {
-                ApplyFont(score, title: true);
                 score.color = lavender;
                 score.fontStyle = FontStyles.Bold;
                 score.enableAutoSizing = false;
-                if (score.fontSize < 26f)
-                    score.fontSize = 30f;
             }
 
             if (timer != null)
             {
-                ApplyFont(timer, title: true);
                 timer.color = new Color(1f, 0.85f, 0.55f, 1f);
                 timer.fontStyle = FontStyles.Bold;
                 timer.enableAutoSizing = false;
@@ -327,7 +268,6 @@ namespace OrbitScout.UI
 
             if (feedback != null)
             {
-                ApplyFont(feedback, title: false);
                 feedback.color = softLavender;
                 feedback.enableAutoSizing = false;
                 feedback.alignment = TextAlignmentOptions.Center;
@@ -338,80 +278,18 @@ namespace OrbitScout.UI
         {
             if (title != null)
             {
-                ApplyFont(title, title: true);
                 title.color = new Color(0.35f, 0.18f, 0.55f, 1f);
                 title.fontStyle = FontStyles.Bold;
                 title.alignment = TextAlignmentOptions.Center;
                 title.enableAutoSizing = false;
-                if (title.fontSize < 28f)
-                    title.fontSize = 34f;
             }
 
             if (body != null)
             {
-                ApplyFont(body, title: false);
                 body.color = new Color(0.30f, 0.16f, 0.45f, 1f);
                 body.alignment = TextAlignmentOptions.TopLeft;
                 body.enableAutoSizing = false;
-                if (body.fontSize < 20f || body.fontSize > 26f)
-                    body.fontSize = 22f;
             }
-        }
-
-        public static void StyleMenuChromeTexts(GameObject menuPanel, GameObject levelSelectPanel)
-        {
-            ApplyNamedTitle(menuPanel, "Title", 56f);
-            ApplyNamedBody(menuPanel, "Subtitle", 22f);
-            ApplyNamedTitle(levelSelectPanel, "Title", 46f);
-            if (levelSelectPanel != null)
-            {
-                TMP_Text status = null;
-                foreach (TMP_Text t in levelSelectPanel.GetComponentsInChildren<TMP_Text>(true))
-                {
-                    if (t != null && t.name == "Status")
-                    {
-                        status = t;
-                        break;
-                    }
-                }
-
-                if (status != null)
-                {
-                    ApplyFont(status, title: false);
-                    status.color = new Color(0.82f, 0.72f, 0.98f, 0.95f);
-                }
-            }
-        }
-
-        static void ApplyNamedTitle(GameObject panel, string childName, float size)
-        {
-            if (panel == null)
-                return;
-            Transform t = panel.transform.Find(childName);
-            if (t == null)
-                return;
-            TMP_Text text = t.GetComponent<TMP_Text>();
-            if (text == null)
-                return;
-            ApplyFont(text, title: true);
-            text.color = AccentGold;
-            text.fontStyle = FontStyles.Bold;
-            text.fontSize = size;
-        }
-
-        static void ApplyNamedBody(GameObject panel, string childName, float size)
-        {
-            if (panel == null)
-                return;
-            Transform t = panel.transform.Find(childName);
-            if (t == null)
-                return;
-            TMP_Text text = t.GetComponent<TMP_Text>();
-            if (text == null)
-                return;
-            ApplyFont(text, title: false);
-            text.color = TextMuted;
-            text.fontSize = size;
         }
 
         public static void StyleButton(Button button, bool primary)

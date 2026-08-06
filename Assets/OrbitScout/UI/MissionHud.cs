@@ -48,7 +48,20 @@ namespace OrbitScout.UI
         {
             GameProgress.UseNormalProgression();
             EnsureHudView();
-            EnsureBriefingAndContinueUi();
+            try
+            {
+                ApplyStartMenuPillButtons();
+                OrbitScoutMenuBranding.Apply(hudView);
+                // Branding clears score refs on the view — refresh local cache
+                menuScoresPanel = null;
+                menuScoresText = null;
+                EnsureBriefingAndContinueUi();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("Orbit Scout: HUD polish failed (menu should still show): " + ex.Message);
+            }
+
             WireButtonListeners();
             ShowMainMenu();
         }
@@ -58,6 +71,16 @@ namespace OrbitScout.UI
             WireSession();
             SunTapReject.OnSunTapMessage += HandleSunTap;
             SyncArCameraToActivePanel();
+            // Re-assert menu after AR/XR systems finish waking up
+            if (menuPanel != null && !menuPanel.activeInHierarchy
+                && (levelSelectPanel == null || !levelSelectPanel.activeInHierarchy)
+                && (playPanel == null || !playPanel.activeInHierarchy)
+                && (endPanel == null || !endPanel.activeInHierarchy))
+            {
+                ShowMainMenu();
+            }
+
+            hudView?.GetComponent<OrbitScoutHudCanvasDriver>()?.ApplyPlayModePresentation();
         }
 
         void EnsureHudView()
@@ -70,8 +93,10 @@ namespace OrbitScout.UI
 
             if (hudView != null)
             {
+                if (hudView.transform.parent != null)
+                    hudView.transform.SetParent(null, false);
+                hudView.GetComponent<OrbitScoutHudCanvasDriver>()?.ApplyPlayModePresentation();
                 CacheReferencesFromView();
-                ApplyStartMenuPillButtons();
                 return;
             }
 
@@ -81,11 +106,12 @@ namespace OrbitScout.UI
 
             if (prefab != null)
             {
-                GameObject instance = Instantiate(prefab, transform);
+                // Root overlay — do not parent under OrbitScout / XR Origin
+                GameObject instance = Instantiate(prefab);
                 instance.name = "OrbitScoutHud";
                 hudView = instance.GetComponent<OrbitScoutHudView>();
+                instance.GetComponent<OrbitScoutHudCanvasDriver>()?.ApplyPlayModePresentation();
                 CacheReferencesFromView();
-                ApplyStartMenuPillButtons();
                 return;
             }
 
@@ -128,7 +154,6 @@ namespace OrbitScout.UI
             OrbitScoutLevelMapController.EnsureOnPanel(hudView.levelSelectPanel);
             OrbitScoutWalkthroughUi.EnsureOnBriefingPanel(hudView.briefingPanel, hudView.briefingTitleText, hudView.briefingBodyText);
             OrbitScoutUiTheme.StyleWalkthroughTexts(hudView.briefingTitleText, hudView.briefingBodyText);
-            OrbitScoutUiTheme.StyleMenuChromeTexts(hudView.menuPanel, hudView.levelSelectPanel);
             resultsPanel = OrbitScoutResultsPanel.EnsureOnEndPanel(hudView.endPanel);
             OrbitScoutUiTheme.ApplyGlassButtons(hudView);
             OrbitScoutUiTheme.StylePlayHudTexts(
@@ -137,7 +162,77 @@ namespace OrbitScout.UI
                 hudView.scoreText,
                 hudView.timerText,
                 hudView.feedbackText);
+            HidePlayHudCard("FeedbackCard");
+            ApplyPlayHudLayout();
             LayoutEndScreenButtons();
+        }
+
+        void ApplyPlayHudLayout()
+        {
+            if (hudView == null || hudView.playPanel == null)
+                return;
+
+            float topInset = 0f;
+            float bottomInset = 0f;
+            if (Application.isPlaying && Screen.height > 1)
+            {
+                Rect safe = Screen.safeArea;
+                topInset = Mathf.Clamp01(1f - safe.yMax / Screen.height);
+                bottomInset = Mathf.Clamp01(safe.yMin / Screen.height);
+            }
+
+            float topY = Mathf.Clamp01(0.965f - topInset - 0.012f);
+            float scoreY = Mathf.Clamp01(topY - 0.048f);
+            float cardY = Mathf.Clamp01(scoreY - 0.085f);
+
+            PlaceAnchored(hudView.restartButton != null ? hudView.restartButton.transform as RectTransform : null, 0.16f, topY, 220f, 72f);
+            PlaceAnchored(hudView.menuButton != null ? hudView.menuButton.transform as RectTransform : null, 0.84f, topY, 220f, 72f);
+            PlaceAnchored(hudView.scoreText != null ? hudView.scoreText.rectTransform : null, 0.5f, scoreY, 640f, 56f);
+            PlaceAnchored(hudView.timerText != null ? hudView.timerText.rectTransform : null, 0.5f, scoreY - 0.038f, 640f, 48f);
+
+            Transform card = hudView.playPanel.transform.Find("QuestionCard");
+            if (card != null)
+            {
+                Image cardImage = card.GetComponent<Image>();
+                if (cardImage != null)
+                {
+                    cardImage.color = new Color(0.05f, 0.07f, 0.14f, 0.52f);
+                    cardImage.raycastTarget = false;
+                }
+
+                PlaceAnchored(card as RectTransform, 0.5f, cardY, 920f, 300f);
+            }
+
+            // Mission label sits in the card header; clue fills the body (matches editor composition)
+            PlaceAnchored(hudView.streakText != null ? hudView.streakText.rectTransform : null, 0.5f, cardY + 0.055f, 860f, 52f);
+            PlaceAnchored(hudView.questionText != null ? hudView.questionText.rectTransform : null, 0.5f, cardY - 0.025f, 860f, 170f);
+            PlaceAnchored(hudView.noneMatchButton != null ? hudView.noneMatchButton.transform as RectTransform : null, 0.5f, 0.065f + bottomInset, 560f, 90f);
+
+            OrbitScoutUiTheme.StyleCompactGlassButton(hudView.restartButton, false);
+            OrbitScoutUiTheme.StyleCompactGlassButton(hudView.menuButton, false);
+            if (hudView.noneMatchButton != null)
+                OrbitScoutUiTheme.StyleMenuPillButton(hudView.noneMatchButton, true, 560f, 90f);
+        }
+
+        static void PlaceAnchored(RectTransform rect, float anchorX, float anchorY, float width, float height)
+        {
+            if (rect == null)
+                return;
+
+            rect.anchorMin = rect.anchorMax = new Vector2(anchorX, anchorY);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(width, height);
+        }
+
+        void HidePlayHudCard(string cardName)
+        {
+            if (hudView == null || hudView.playPanel == null)
+                return;
+
+            Transform card = hudView.playPanel.transform.Find(cardName);
+            if (card != null)
+                card.gameObject.SetActive(false);
         }
 
         void LayoutEndScreenButtons()
@@ -145,10 +240,19 @@ namespace OrbitScout.UI
             if (hudView == null)
                 return;
 
-            PlaceButton(hudView.continueNextButton, 0.22f);
-            PlaceButton(hudView.retryLevelButton, 0.14f);
-            PlaceButton(hudView.endLevelSelectButton, 0.08f);
-            PlaceButton(hudView.endMainMenuButton, 0.03f);
+            bool showContinue = continueNextButton != null && continueNextButton.gameObject.activeSelf;
+            float y = 0.235f;
+            if (showContinue)
+            {
+                PlaceButton(hudView.continueNextButton, y);
+                y -= 0.07f;
+            }
+
+            PlaceButton(hudView.retryLevelButton, y);
+            y -= 0.07f;
+            PlaceButton(hudView.endLevelSelectButton, y);
+            y -= 0.07f;
+            PlaceButton(hudView.endMainMenuButton, y);
         }
 
         static void PlaceButton(Button button, float anchorY)
@@ -356,16 +460,15 @@ namespace OrbitScout.UI
 
         void RefreshScoreboard()
         {
-            if (menuScoresText == null)
-                return;
+            // Start menu no longer shows level scores (matches EditorTest hero)
+            if (menuScoresText != null)
+            {
+                menuScoresText.gameObject.SetActive(false);
+                menuScoresText = null;
+            }
 
-            menuScoresText.text =
-                "Overall: " + GameProgress.GetOverallScore() + "\n" +
-                "L1 best: " + GameProgress.GetLevelHighScore(LevelId.Level1) + "  " +
-                "L2: " + GameProgress.GetLevelHighScore(LevelId.Level2) + "\n" +
-                "L3: " + GameProgress.GetLevelHighScore(LevelId.Level3) + "  " +
-                "L4: " + GameProgress.GetLevelHighScore(LevelId.Level4) + "\n" +
-                "Unlocked through Level " + GameProgress.GetUnlockedLevel();
+            if (menuScoresPanel != null)
+                menuScoresPanel.SetActive(false);
         }
 
         void ShowMainMenu()
@@ -375,8 +478,9 @@ namespace OrbitScout.UI
 
             HideAllPanels();
             menuPanel.SetActive(true);
+            // Polished hero menu hides the scoreboard (matches EditorTest)
             if (menuScoresPanel != null)
-                menuScoresPanel.SetActive(true);
+                menuScoresPanel.SetActive(false);
             OrbitScoutArCameraPresentation.ApplyMenuPresentation();
             RefreshScoreboard();
         }
@@ -466,8 +570,8 @@ namespace OrbitScout.UI
                     feedbackText.text = string.Empty;
                 if (streakText != null)
                 {
-                    streakText.text = string.Empty;
-                    streakText.gameObject.SetActive(false);
+                    streakText.gameObject.SetActive(true);
+                    streakText.text = "Mission " + OrbitScoutLevelBriefings.RomanNumeral(level);
                 }
                 if (scoreText != null)
                     scoreText.text = "Score  0";
@@ -573,8 +677,8 @@ namespace OrbitScout.UI
                 noneMatchButton.gameObject.SetActive(false);
             if (streakText != null)
             {
-                streakText.text = string.Empty;
-                streakText.gameObject.SetActive(false);
+                streakText.gameObject.SetActive(true);
+                streakText.text = "Mission " + OrbitScoutLevelBriefings.RomanNumeral(level);
             }
             if (feedbackText != null)
                 feedbackText.text = string.Empty;
@@ -585,11 +689,11 @@ namespace OrbitScout.UI
 
         void HandleQuestionChanged(string header, string body)
         {
-            // Clue / characteristics only — no question-count UI
+            // header = question number (and optional phase); body = clue / characteristics only
             if (streakText != null)
             {
-                streakText.text = string.Empty;
-                streakText.gameObject.SetActive(false);
+                streakText.gameObject.SetActive(true);
+                streakText.text = header;
             }
             if (questionText != null)
                 questionText.text = body;

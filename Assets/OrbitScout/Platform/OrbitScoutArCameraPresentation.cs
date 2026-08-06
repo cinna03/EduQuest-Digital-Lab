@@ -17,11 +17,21 @@ namespace OrbitScout.Platform
             if (bootstrap == null || bootstrap.playMode != SolarPlayMode.AugmentedReality)
                 return;
 
-            if (liveFeedEnabled == enabled)
-                return;
-
             liveFeedEnabled = enabled;
             Camera cam = Camera.main;
+            if (cam == null)
+            {
+                // XR Origin camera may not be tagged MainCamera yet
+                foreach (Camera c in Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
+                {
+                    if (c != null && c.enabled)
+                    {
+                        cam = c;
+                        break;
+                    }
+                }
+            }
+
             if (cam == null)
                 return;
 

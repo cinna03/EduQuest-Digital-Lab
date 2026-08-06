@@ -30,35 +30,45 @@ namespace OrbitScout.UI
                 return null;
 
             OrbitScoutWalkthroughUi.ApplyBackground(endPanel);
+            HideLegacyEndLabels(endPanel);
 
             Transform existing = endPanel.transform.Find(RootName);
             if (existing != null)
             {
                 OrbitScoutResultsPanel panel = existing.GetComponent<OrbitScoutResultsPanel>();
                 if (panel != null)
+                {
+                    panel.ApplyLayout();
                     return panel;
-                Object.DestroyImmediate(existing.gameObject);
-            }
+                }
 
-            // Hide legacy flat title/body if present (we replace the look)
-            foreach (Transform child in endPanel.transform)
-            {
-                if (child.name == "Title" || child.name == "Body")
-                    child.gameObject.SetActive(false);
+                if (Application.isPlaying)
+                    Object.Destroy(existing.gameObject);
+                else
+                    Object.DestroyImmediate(existing.gameObject);
             }
 
             GameObject root = new GameObject(RootName, typeof(RectTransform), typeof(OrbitScoutResultsPanel));
             root.transform.SetParent(endPanel.transform, false);
             root.transform.SetAsFirstSibling();
             RectTransform rootRect = root.GetComponent<RectTransform>();
-            rootRect.anchorMin = Vector2.zero;
-            rootRect.anchorMax = Vector2.one;
-            rootRect.offsetMin = Vector2.zero;
-            rootRect.offsetMax = Vector2.zero;
+            StretchFull(rootRect);
 
             OrbitScoutResultsPanel results = root.GetComponent<OrbitScoutResultsPanel>();
             results.Build(rootRect);
             return results;
+        }
+
+        static void HideLegacyEndLabels(GameObject endPanel)
+        {
+            if (endPanel == null)
+                return;
+
+            foreach (Transform child in endPanel.transform)
+            {
+                if (child.name == "Title" || child.name == "Body")
+                    child.gameObject.SetActive(false);
+            }
         }
 
         void Build(RectTransform root)
@@ -73,35 +83,21 @@ namespace OrbitScout.UI
 #endif
 
             starImages = new Image[3];
-            Vector2[] starAnchors =
-            {
-                new Vector2(0.32f, 0.78f),
-                new Vector2(0.50f, 0.82f),
-                new Vector2(0.68f, 0.78f),
-            };
-            Vector2[] starSizes =
-            {
-                new Vector2(100f, 100f),
-                new Vector2(130f, 130f),
-                new Vector2(100f, 100f),
-            };
             for (int i = 0; i < 3; i++)
-            {
-                starImages[i] = CreateImage(root, "Star_" + (i + 1), goldStar, starAnchors[i], starSizes[i]);
-            }
+                starImages[i] = CreateImage(root, "Star_" + (i + 1), goldStar, Vector2.zero, Vector2.one);
 
-            levelPill = CreateImage(root, "LevelPill", null, new Vector2(0.5f, 0.70f), new Vector2(220f, 48f));
+            levelPill = CreateImage(root, "LevelPill", null, Vector2.zero, Vector2.one);
             levelPill.color = new Color(0.35f, 0.18f, 0.55f, 0.85f);
-            levelPillText = CreateLabel(levelPill.transform, "Label", "Mission I", 22f, Vector2.zero, new Vector2(200f, 40f));
+            levelPillText = CreateLabel(levelPill.transform, "Label", "Mission I", 22f);
             levelPillText.color = Color.white;
             levelPillText.fontStyle = FontStyles.Bold;
+            StretchFull(levelPillText.rectTransform);
 
-            headlineText = CreateLabel(root, "Headline", "COMPLETED!", 56f, new Vector2(0.5f, 0.62f), new Vector2(900f, 90f));
+            headlineText = CreateLabel(root, "Headline", "COMPLETED!", 52f);
             headlineText.fontStyle = FontStyles.Bold;
             headlineText.color = new Color(1f, 0.88f, 0.35f, 1f);
-            OrbitScoutUiTheme.ApplyFont(headlineText, title: true);
 
-            scoreCard = CreateImage(root, "ScoreCard", null, new Vector2(0.5f, 0.46f), new Vector2(520f, 200f));
+            scoreCard = CreateImage(root, "ScoreCard", null, Vector2.zero, Vector2.one);
             scoreCard.color = new Color(0.22f, 0.12f, 0.38f, 0.82f);
             Outline outline = scoreCard.gameObject.AddComponent<Outline>();
             outline.effectColor = new Color(0.78f, 0.55f, 1f, 0.7f);
@@ -109,32 +105,66 @@ namespace OrbitScout.UI
 
             GameObject rewardTab = new GameObject("RewardTab", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             rewardTab.transform.SetParent(scoreCard.transform, false);
-            RectTransform tabRect = rewardTab.GetComponent<RectTransform>();
-            tabRect.anchorMin = tabRect.anchorMax = new Vector2(0.5f, 1f);
-            tabRect.pivot = new Vector2(0.5f, 0.5f);
-            tabRect.anchoredPosition = new Vector2(0f, 18f);
-            tabRect.sizeDelta = new Vector2(180f, 40f);
             rewardTab.GetComponent<Image>().color = new Color(0.55f, 0.35f, 0.85f, 0.95f);
-            TMP_Text rewardLabel = CreateLabel(rewardTab.transform, "Label", "SCORE", 20f, Vector2.zero, new Vector2(160f, 36f));
+            TMP_Text rewardLabel = CreateLabel(rewardTab.transform, "Label", "SCORE", 20f);
             rewardLabel.color = new Color(1f, 0.9f, 0.4f, 1f);
             rewardLabel.fontStyle = FontStyles.Bold;
+            StretchFull(rewardLabel.rectTransform);
+            PlaceAnchored(rewardTab.GetComponent<RectTransform>(), 0.5f, 1f, 0.5f, 0.5f, new Vector2(0f, 18f), new Vector2(180f, 40f));
 
-            scoreValueText = CreateLabel(scoreCard.transform, "ScoreValue", "0", 52f, new Vector2(0f, 18f), new Vector2(480f, 70f));
+            scoreValueText = CreateLabel(scoreCard.transform, "ScoreValue", "0", 56f);
             scoreValueText.color = Color.white;
             scoreValueText.fontStyle = FontStyles.Bold;
-            OrbitScoutUiTheme.ApplyFont(scoreValueText, title: true);
 
-            scoreLabelText = CreateLabel(scoreCard.transform, "ScoreSub", "Best 0", 22f, new Vector2(0f, -40f), new Vector2(480f, 40f));
+            scoreLabelText = CreateLabel(scoreCard.transform, "ScoreSub", "Best 0", 22f);
             scoreLabelText.color = new Color(0.85f, 0.75f, 1f, 1f);
-            OrbitScoutUiTheme.ApplyFont(scoreLabelText, title: false);
 
-            detailText = CreateLabel(root, "Details", "", 22f, new Vector2(0.5f, 0.30f), new Vector2(860f, 100f));
+            detailText = CreateLabel(root, "Details", "", 24f);
             detailText.color = new Color(0.92f, 0.88f, 1f, 1f);
-            OrbitScoutUiTheme.ApplyFont(detailText, title: false);
+            detailText.enableWordWrapping = true;
+            detailText.overflowMode = TextOverflowModes.Overflow;
+            detailText.lineSpacing = 8f;
+
+            ApplyLayout();
+        }
+
+        /// <summary>
+        /// Clear vertical bands so stars, headline, score, and details never collide.
+        /// </summary>
+        public void ApplyLayout()
+        {
+            if (starImages != null && starImages.Length >= 3)
+            {
+                PlaceAnchored(starImages[0].rectTransform, 0.32f, 0.86f, 0.5f, 0.5f, Vector2.zero, new Vector2(100f, 100f));
+                PlaceAnchored(starImages[1].rectTransform, 0.50f, 0.89f, 0.5f, 0.5f, Vector2.zero, new Vector2(130f, 130f));
+                PlaceAnchored(starImages[2].rectTransform, 0.68f, 0.86f, 0.5f, 0.5f, Vector2.zero, new Vector2(100f, 100f));
+            }
+
+            if (levelPill != null)
+                PlaceAnchored(levelPill.rectTransform, 0.5f, 0.76f, 0.5f, 0.5f, Vector2.zero, new Vector2(240f, 48f));
+
+            if (headlineText != null)
+                PlaceAnchored(headlineText.rectTransform, 0.5f, 0.68f, 0.5f, 0.5f, Vector2.zero, new Vector2(920f, 70f));
+
+            if (scoreCard != null)
+                PlaceAnchored(scoreCard.rectTransform, 0.5f, 0.52f, 0.5f, 0.5f, Vector2.zero, new Vector2(560f, 200f));
+
+            if (scoreValueText != null)
+                PlaceAnchored(scoreValueText.rectTransform, 0.5f, 0.58f, 0.5f, 0.5f, Vector2.zero, new Vector2(500f, 72f));
+
+            if (scoreLabelText != null)
+                PlaceAnchored(scoreLabelText.rectTransform, 0.5f, 0.26f, 0.5f, 0.5f, Vector2.zero, new Vector2(500f, 40f));
+
+            // Own band under the score card, clear of the CTA buttons
+            if (detailText != null)
+                PlaceAnchored(detailText.rectTransform, 0.5f, 0.365f, 0.5f, 0.5f, Vector2.zero, new Vector2(880f, 96f));
         }
 
         public void ShowResult(LevelRunResult result)
         {
+            HideLegacyEndLabels(transform.parent != null ? transform.parent.gameObject : null);
+            ApplyLayout();
+
             bool won = result.PassedUnlock;
             int litStars = ComputeStars(result);
 
@@ -157,9 +187,10 @@ namespace OrbitScout.UI
 
             if (detailText != null)
             {
-                detailText.text = result.Summary + "\n" +
-                    "Correct " + result.CorrectCount + "/" + result.TotalQuestions +
+                string summary = string.IsNullOrWhiteSpace(result.Summary) ? string.Empty : result.Summary.Trim();
+                string stats = "Correct " + result.CorrectCount + "/" + result.TotalQuestions +
                     "  ·  Overall " + GameProgress.GetOverallScore();
+                detailText.text = string.IsNullOrEmpty(summary) ? stats : summary + "\n" + stats;
             }
 
             for (int i = 0; i < starImages.Length; i++)
@@ -189,14 +220,40 @@ namespace OrbitScout.UI
             return 1;
         }
 
+        static void StretchFull(RectTransform rect)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = Vector2.zero;
+        }
+
+        static void PlaceAnchored(
+            RectTransform rect,
+            float anchorX,
+            float anchorY,
+            float pivotX,
+            float pivotY,
+            Vector2 anchoredPos,
+            Vector2 size)
+        {
+            if (rect == null)
+                return;
+
+            rect.anchorMin = rect.anchorMax = new Vector2(anchorX, anchorY);
+            rect.pivot = new Vector2(pivotX, pivotY);
+            rect.anchoredPosition = anchoredPos;
+            rect.sizeDelta = size;
+        }
+
         static Image CreateImage(Transform parent, string name, Sprite sprite, Vector2 anchor, Vector2 size)
         {
             GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             go.transform.SetParent(parent, false);
             RectTransform rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = anchor;
-            rect.sizeDelta = size;
-            rect.anchoredPosition = Vector2.zero;
+            PlaceAnchored(rect, anchor.x, anchor.y, 0.5f, 0.5f, Vector2.zero, size);
             Image image = go.GetComponent<Image>();
             image.sprite = sprite;
             image.preserveAspect = sprite != null;
@@ -205,22 +262,16 @@ namespace OrbitScout.UI
             return image;
         }
 
-        static Image CreateImage(RectTransform parent, string name, Sprite sprite, Vector2 anchor, Vector2 size)
-            => CreateImage((Transform)parent, name, sprite, anchor, size);
-
-        static TMP_Text CreateLabel(Transform parent, string name, string text, float size, Vector2 anchoredPos, Vector2 sizeDelta)
+        static TMP_Text CreateLabel(Transform parent, string name, string text, float size)
         {
             GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
             go.transform.SetParent(parent, false);
-            RectTransform rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = anchoredPos;
-            rect.sizeDelta = sizeDelta;
             TMP_Text tmp = go.GetComponent<TMP_Text>();
             tmp.text = text;
             tmp.fontSize = size;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.raycastTarget = false;
+            tmp.enableAutoSizing = false;
             return tmp;
         }
     }

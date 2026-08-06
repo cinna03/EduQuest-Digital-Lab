@@ -30,11 +30,7 @@ namespace OrbitScout.View
             bodyRenderer = GetComponent<Renderer>();
             baseColor = color;
             baseLocalScale = transform.localScale;
-            if (bodyRenderer != null)
-            {
-                bodyRenderer.SetPropertyBlock(null);
-                bodyRenderer.material.color = color;
-            }
+            ApplyColorDisplay();
         }
 
         public void ResetForLevelStart(LevelVisualMode mode)
@@ -80,21 +76,22 @@ namespace OrbitScout.View
             if (bodyRenderer == null)
                 return;
 
-            float t = saveSteps / 3f;
-            Color display = Color.Lerp(new Color(0.42f, 0.42f, 0.46f), baseColor, t);
+            // Greyscale when unrestored; color returns as the planet is saved
+            float saturation = saveSteps / 3f;
+            Color tint = Color.white;
 
             if (crackSteps > 0)
             {
                 float crackStrength = crackSteps switch
                 {
-                    1 => 0.35f,
-                    2 => 0.55f,
-                    _ => 0.75f
+                    1 => 0.28f,
+                    2 => 0.45f,
+                    _ => 0.65f
                 };
-                display = Color.Lerp(display, new Color(0.95f, 0.2f, 0.15f), crackStrength);
+                tint = Color.Lerp(Color.white, new Color(1f, 0.35f, 0.28f), crackStrength);
             }
 
-            bodyRenderer.material.color = display;
+            PlanetMaterials.SetBodyDisplay(bodyRenderer, tint, saturation);
         }
 
         void RebuildCrackDecor(int cracks)
@@ -163,7 +160,11 @@ namespace OrbitScout.View
                 float pulse = 1f + t * 0.6f;
                 transform.localScale = startScale * pulse;
                 if (bodyRenderer != null)
-                    bodyRenderer.material.color = Color.Lerp(bodyRenderer.material.color, Color.black, t * 2f);
+                {
+                    float sat = Mathf.Lerp(saveSteps / 3f, 0f, t * 2f);
+                    Color tint = Color.Lerp(Color.white, Color.black, t * 2f);
+                    PlanetMaterials.SetBodyDisplay(bodyRenderer, tint, sat);
+                }
                 yield return null;
             }
 
@@ -179,17 +180,17 @@ namespace OrbitScout.View
         void ApplyColorDisplay()
         {
             if (bodyRenderer != null)
-                bodyRenderer.material.color = baseColor;
+                PlanetMaterials.SetBodyDisplay(bodyRenderer, Color.white, 1f);
         }
 
         public void FlashCorrect()
         {
-            StartFlash(new Color(0.35f, 1f, 0.55f));
+            StartFlash(new Color(0.45f, 1f, 0.6f));
         }
 
         public void FlashWrong()
         {
-            StartFlash(new Color(1f, 0.35f, 0.35f));
+            StartFlash(new Color(1f, 0.4f, 0.4f));
         }
 
         void StartFlash(Color color)
@@ -206,7 +207,7 @@ namespace OrbitScout.View
         IEnumerator FlashRoutine(Color color)
         {
             if (bodyRenderer != null)
-                bodyRenderer.material.color = color;
+                PlanetMaterials.SetBodyDisplay(bodyRenderer, color, 1f);
 
             yield return new WaitForSeconds(0.18f);
 
